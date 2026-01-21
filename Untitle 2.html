@@ -1,0 +1,686 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Dialogue System v3.3</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background: #0a0a0a; height: 100vh; overflow: hidden; color: #e0e0e0; }
+        .main-container { display: flex; flex-direction: column; height: 100vh; }
+        .status-bar { background: rgba(15, 15, 15, 0.9); border-bottom: 1px solid #333; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; min-height: 50px; flex-wrap: wrap; gap: 10px; }
+        .status-left { display: flex; align-items: center; gap: 15px; flex: 1; }
+        .model-selector { display: flex !important; align-items: center; gap: 8px; flex-shrink: 0; margin-right: 10px; }
+        .model-selector select { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #4A90E2; background: rgba(30, 30, 30, 0.8); border: 1px solid #333; border-radius: 6px; padding: 4px 8px; cursor: pointer; min-width: 140px; }
+        .status-indicator { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #888; flex-shrink: 0; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; transition: all 0.3s ease; }
+        .status-dot.active { background: #00ff41; box-shadow: 0 0 10px #00ff41; }
+        .status-dot.thinking { background: #ffaa00; box-shadow: 0 0 10px #ffaa00; animation: pulse 1s infinite; }
+        .model-name-display { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #4A90E2; font-weight: 500; }
+        .stats { display: flex; gap: 20px; font-size: 12px; color: #666; font-family: 'JetBrains Mono', monospace; }
+        .chat-container { flex: 1; overflow-y: auto; padding: 25px 20px; scroll-behavior: smooth; }
+        .message { display: flex; margin-bottom: 24px; animation: fadeIn 0.3s ease-out; }
+        .message.user { justify-content: flex-end; }
+        .message-bubble { max-width: 84%; padding: 14px 18px; border-radius: 18px; word-wrap: break-word; white-space: pre-wrap; line-height: 1.6; font-size: 15px; }
+        .message.user .message-bubble { background: linear-gradient(135deg, #4A90E2 0%, #3B7BD5 100%); color: white; border-bottom-right-radius: 6px; }
+        .message.ai .message-bubble { background: rgba(30, 30, 30, 0.8); color: #f1f5f9; border: 1px solid #333; border-bottom-left-radius: 6px; }
+        .message.ai.dual-mode .message-bubble::before { content: attr(data-model-name); display: block; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #888; margin-bottom: 6px; font-weight: 600; }
+        .message.gemini .message-bubble { border-left: 3px solid #4A90E2; background: rgba(30, 30, 50, 0.6); }
+        .message.grok .message-bubble { border-left: 3px solid #ffaa00; background: rgba(50, 40, 30, 0.6); }
+        .message-footer { font-size: 11px; color: #555; margin-top: 6px; display: flex; justify-content: space-between; align-items: center; }
+        .token-info { font-family: 'JetBrains Mono', monospace; color: #4A90E2; font-weight: 600; }
+        
+        /* ===== 修改：合并为一个输入框区域 ===== */
+        .input-area { 
+            background: rgba(15, 15, 15, 0.9); 
+            border-top: 1px solid #333; 
+            padding: 18px 24px; 
+            display: flex; 
+            gap: 12px; 
+            align-items: flex-end; 
+        }
+        .message-input { 
+            flex: 1; 
+            min-height: 48px; 
+            max-height: 200px; 
+            padding: 12px 16px; 
+            border: 1px solid #333; 
+            border-radius: 24px; 
+            font-size: 15px; 
+            resize: none; 
+            outline: none; 
+            background: rgba(30, 30, 30, 0.5); 
+            color: #f1f5f9; 
+            font-family: 'Inter', sans-serif;
+        }
+        .message-input:focus { 
+            border-color: #4A90E2; 
+            background: rgba(30, 30, 30, 0.8); 
+        }
+        /* 对战模式下的输入框样式 */
+        .message-input.dual-mode { 
+            background: rgba(20, 30, 20, 0.5); 
+            color: #00ff41; 
+        }
+        .message-input.dual-mode:focus { 
+            border-color: #00ff41; 
+            background: rgba(20, 30, 20, 0.8); 
+            box-shadow: 0 0 0 2px rgba(0, 255, 65, 0.2); 
+        }
+        .send-btn { 
+            width: 44px; 
+            height: 44px; 
+            border-radius: 50%; 
+            border: none; 
+            cursor: pointer; 
+            background: linear-gradient(135deg, #4A90E2 0%, #00ff41 100%); 
+            color: #000; 
+            font-weight: bold; 
+            flex-shrink: 0; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .send-btn:disabled { background: #555; color: #222; cursor: not-allowed; }
+        /* 对战模式下的发送按钮样式 */
+        .send-btn.dual-mode { 
+            background: linear-gradient(135deg, #ffaa00 0%, #ff6b00 100%); 
+        }
+
+        .typing-indicator { display: flex; gap: 4px; padding: 14px 18px; background: rgba(30, 30, 30, 0.8); border-radius: 18px; border-bottom-left-radius: 6px; width: fit-content; border: 1px solid #333; }
+        .typing-dot { width: 8px; height: 8px; border-radius: 50%; background: #4A90E2; animation: typingBounce 1.4s infinite; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typingBounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-8px); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .mode-switcher { position: fixed; top: 12px; right: 24px; z-index: 100; display: flex; align-items: center; gap: 8px; background: rgba(15, 15, 15, 0.9); padding: 6px 12px; border-radius: 20px; border: 1px solid #333; }
+        .switch { position: relative; width: 40px; height: 22px; background: #333; border-radius: 11px; cursor: pointer; transition: background 0.3s ease; }
+        .switch.active { background: #4A90E2; }
+        .switch-slider { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: white; border-radius: 50%; transition: transform 0.3s ease; }
+        .switch.active .switch-slider { transform: translateX(18px); }
+        .dual-model-controls { background: rgba(15, 15, 15, 0.9); padding: 12px 24px; border-top: 1px solid #333; display: none; align-items: center; gap: 12px; font-size: 13px; flex-wrap: wrap; }
+        .dual-model-controls.show { display: flex; }
+        .round-counter { font-family: 'JetBrains Mono', monospace; color: #00ff41; font-weight: 600; margin-right: auto; font-size: 14px; }
+        .control-btn { padding: 6px 12px; border: 1px solid #333; background: rgba(30, 30, 30, 0.8); color: #888; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.3s ease; white-space: nowrap; min-height: 44px; }
+        .control-btn:hover { border-color: #4A90E2; color: #4A90E2; background: rgba(74, 144, 226, 0.2); }
+        /* 智能模式提示 */
+        .mode-hint { 
+            position: absolute; 
+            bottom: 70px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            background: rgba(15, 15, 15, 0.9); 
+            border: 1px solid #333; 
+            border-radius: 10px; 
+            padding: 8px 12px; 
+            font-size: 12px; 
+            color: #888; 
+            display: none; 
+            z-index: 10;
+            white-space: nowrap;
+        }
+        .mode-hint.show { display: block; }
+        @media (max-width: 768px) { 
+            .message-bubble { max-width: 90%; font-size: 14px; } 
+            .stats { display: none; } 
+            .status-bar { padding: 8px 16px; gap: 8px; } 
+            .status-left { gap: 8px; width: 100%; justify-content: space-between; } 
+            .model-name-display { display: none; } 
+            .mode-switcher { top: 8px; right: 12px; padding: 4px 8px; gap: 6px; } 
+            .switch { width: 36px; height: 20px; } 
+            .switch-slider { width: 16px; height: 16px; } 
+            .switch.active .switch-slider { transform: translateX(16px); } 
+            .dual-model-controls { padding: 10px 16px; gap: 8px; } 
+            .control-btn { font-size: 11px; padding: 5px 10px; }
+            .mode-hint { bottom: 60px; font-size: 11px; padding: 6px 10px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 对战模式切换开关 -->
+    <div class="mode-switcher" id="modeSwitchContainer">
+        <span class="switch-label">单模型</span>
+        <div class="switch" id="modeSwitch" onclick="toggleDualModelMode()">
+            <div class="switch-slider"></div>
+        </div>
+        <span class="switch-label">对战</span>
+    </div>
+
+    <!-- 智能模式提示 -->
+    <div class="mode-hint" id="modeHint"></div>
+
+    <!-- 主界面 -->
+    <div class="main-container" id="mainContainer">
+        <!-- 顶部状态栏 -->
+        <div class="status-bar">
+            <div class="status-left">
+                <div class="model-selector">
+                    <label>模型:</label>
+                    <select id="modelSelect" onchange="switchModel()">
+                        <option value="gemini">Gemini-3-Flash</option>
+                        <option value="grok">Grok-4-Fast</option>
+                    </select>
+                </div>
+                <div class="status-indicator">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">空闲</span>
+                </div>
+                <div class="model-name-display" id="modelNameDisplay">gemini-3-flash-preview</div>
+            </div>
+            <div class="stats">
+                <div class="stat-item">
+                    <span>Tokens:</span>
+                    <span class="stat-value" id="tokenCount">0/4000</span>
+                </div>
+                <div class="stat-item">
+                    <span>响应:</span>
+                    <span class="stat-value" id="responseTime">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 对话区 -->
+        <div class="chat-container" id="chatContainer"></div>
+
+        <!-- 对战模式控制面板 -->
+        <div class="dual-model-controls" id="dualModelControls">
+            <span class="round-counter" id="roundCounter">第 1 轮</span>
+            <button class="control-btn" onclick="continueDualModelConversation()">继续下一轮</button>
+            <button class="control-btn" onclick="summarizeDualModel()">总结观点</button>
+            <button class="control-btn" onclick="endDualModelMode()">结束对战</button>
+        </div>
+
+        <!-- ===== 修改：合并为一个输入框 ===== -->
+        <div class="input-area">
+            <textarea class="message-input" id="messageInput" placeholder="输入消息..." rows="1"></textarea>
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="发送">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const MODEL_CONFIGS = {
+            gemini: { name: "gemini-3-flash-preview", apiUrl: "https://api.laozhang.ai/v1/chat/completions", apiKey: "sk-iteEMGRkD2AmffDWFd661cA959B043FdAb53460b8f70F125", displayName: "Gemini", maxTokens: 4000 },
+            grok: { name: "grok-4-fast", apiUrl: "https://api.laozhang.ai/v1/chat/completions", apiKey: "sk-aUWEARqsYm9DNbZ7883dAbBa168b42Fc9b2811F8E8Fc13Fc", displayName: "Grok", maxTokens: 4000 }
+        };
+
+        let currentModel = MODEL_CONFIGS.gemini, conversationHistory = [], messageIdCounter = 0, tokenUsage = 0, requestStartTime = 0;
+        let isDualModelMode = false, currentSpeaker = 'gemini', roundCount = 1, dualModelHistory = [], dualModelTopic = '';
+
+        document.addEventListener('DOMContentLoaded', function() {
+            setupInputHandling();
+            updateModelDisplay();
+            setTimeout(() => {
+                addMessage(`🎯 系统已就绪\n\n✅ 当前模型: ${currentModel.name}\n✅ 智能对战模式\n✅ 单输入框设计\n\n输入消息开始对话`, false);
+            }, 100);
+        });
+
+        function toggleDualModelMode() {
+            const switchEl = document.getElementById('modeSwitch'), 
+                  controlsEl = document.getElementById('dualModelControls'), 
+                  modelSelector = document.querySelector('.model-selector'),
+                  input = document.getElementById('messageInput'),
+                  sendBtn = document.getElementById('sendBtn');
+            
+            isDualModelMode = !isDualModelMode;
+            
+            if (isDualModelMode) {
+                switchEl.classList.add('active'); 
+                controlsEl.classList.add('show'); 
+                modelSelector.style.display = 'none';
+                
+                // 更新输入框样式和提示
+                input.classList.add('dual-mode');
+                sendBtn.classList.add('dual-mode');
+                input.placeholder = dualModelTopic ? '作为主持人加入讨论...' : '输入讨论话题...';
+                
+                conversationHistory = []; 
+                tokenUsage = 0; 
+                updateTokenCount(); 
+                document.getElementById('chatContainer').innerHTML = '';
+                
+                addMessage('🥊 智能对战模式已启动\n\n✅ Gemini vs Grok\n\n输入框已智能切换：\n- 首次输入：设为讨论话题\n- 后续输入：作为主持人加入讨论\n\n输入话题开始对战吧！', false);
+                showHint('智能模式：请输入讨论话题开始对战');
+            } else {
+                switchEl.classList.remove('active'); 
+                controlsEl.classList.remove('show'); 
+                modelSelector.style.display = 'flex';
+                
+                // 恢复输入框样式
+                input.classList.remove('dual-mode');
+                sendBtn.classList.remove('dual-mode');
+                input.placeholder = '输入消息...';
+                
+                dualModelHistory = []; 
+                dualModelTopic = ''; 
+                roundCount = 1; 
+                updateRoundCounter(); 
+                currentSpeaker = 'gemini';
+                
+                addMessage('💬 已退出对战模式，返回单模型对话', false);
+                hideHint();
+            }
+        }
+
+        function updateRoundCounter() { 
+            document.getElementById('roundCounter').textContent = `第 ${roundCount} 轮`; 
+        }
+
+        // ===== 智能发送函数：自动判断意图 =====
+        async function sendMessage() {
+            const input = document.getElementById('messageInput'), 
+                  message = input.value.trim();
+            
+            if (!message) return;
+            
+            if (updateTokenCount() > currentModel.maxTokens) { 
+                addMessage('⚠️ Token使用量已接近上限', false); 
+                return; 
+            }
+            
+            input.value = ''; 
+            input.style.height = 'auto';
+            
+            // 如果是单模型模式
+            if (!isDualModelMode) {
+                addMessage(message, true); 
+                conversationHistory.push({ role: 'user', content: message });
+                requestStartTime = Date.now(); 
+                setStatus('thinking');
+                
+                const loadingElement = addMessage('', false, true), 
+                      sendBtn = document.getElementById('sendBtn');
+                sendBtn.disabled = true;
+                
+                try {
+                    const response = await fetch(currentModel.apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentModel.apiKey}` },
+                        body: JSON.stringify({ model: currentModel.name, messages: conversationHistory, max_tokens: currentModel.maxTokens, temperature: 0.7 })
+                    });
+                    
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    
+                    const data = await response.json(), 
+                          reply = data.choices[0].message?.content || '', 
+                          responseTime = ((Date.now() - requestStartTime) / 1000).toFixed(1);
+                    
+                    document.getElementById('responseTime').textContent = responseTime + 's';
+                    loadingElement.remove(); 
+                    addMessage(reply, false, false, calculateTokens(reply));
+                    conversationHistory.push({ role: 'assistant', content: reply }); 
+                    updateTokenCount();
+                } catch (error) {
+                    loadingElement.remove(); 
+                    addMessage(`❌ 请求失败：${error.message}`, false);
+                } finally { 
+                    sendBtn.disabled = false; 
+                    setStatus('idle'); 
+                }
+            } 
+            // 对战模式：智能判断意图
+            else {
+                // 如果还没有话题，设为话题
+                if (!dualModelTopic) {
+                    dualModelTopic = message;
+                    dualModelHistory = [{ role: 'user', content: message }];
+                    
+                    const topicMsg = addMessage(`🎯 讨论话题：${message}\n\n等待 ${MODEL_CONFIGS.gemini.displayName} 开场...`, false);
+                    topicMsg.style.background = 'rgba(255, 255, 255, 0.05)'; 
+                    topicMsg.style.border = '1px dashed #4A90E2';
+                    
+                    // 更新输入框提示
+                    input.placeholder = '作为主持人加入讨论...';
+                    showHint('智能模式：现在可以加入讨论或让AI继续');
+                    
+                    currentSpeaker = 'gemini'; 
+                    roundCount = 1; 
+                    updateRoundCounter();
+                    await continueDualModelConversation();
+                } 
+                // 已有话题，作为主持人加入讨论
+                else {
+                    // 添加主持人消息
+                    const discussMsg = addMessage(`💬 主持人：${message}`, true);
+                    discussMsg.style.background = 'rgba(0, 255, 65, 0.1)'; 
+                    discussMsg.style.border = '1px dashed #00ff41';
+                    
+                    // 加入历史（标记为第三方）
+                    dualModelHistory.push({ 
+                        role: 'user', 
+                        content: message, 
+                        type: 'third_party_discussion'
+                    });
+                    
+                    // 直接触发AI回应
+                    const controls = document.querySelectorAll('.control-btn'); 
+                    controls.forEach(btn => btn.disabled = true);
+                    setStatus('thinking');
+                    
+                    const speakerModel = MODEL_CONFIGS[currentSpeaker];
+                    
+                    // 构建包含完整历史的提示
+                    const recentHistory = dualModelHistory.slice(-6);
+                    let historyText = `讨论话题: ${dualModelTopic}\n\n`;
+                    
+                    recentHistory.forEach((msg, index) => {
+                        if (msg.role === 'assistant') {
+                            const speaker = msg.model === 'gemini' ? 'Gemini' : 'Grok';
+                            historyText += `${speaker}: ${msg.content.substring(0, 250)}`;
+                        } else {
+                            if (msg.type === 'third_party_discussion') {
+                                historyText += `主持人: ${msg.content}`;
+                            } else {
+                                historyText += `用户: ${msg.content}`;
+                            }
+                        }
+                        if (index < recentHistory.length - 1) historyText += '\n\n';
+                    });
+                    
+                    const prompt = `讨论"${dualModelTopic}"中，主持人加入并发言。
+
+**完整历史**：
+${historyText}
+
+**要求**：识别主持人观点，结合上下文回应，保持逻辑连贯。`;
+                    
+                    const loadingMsg = `[${speakerModel.displayName}] 思考回应...`;
+                    const loadingElement = addMessage(loadingMsg, false, true); 
+                    loadingElement.classList.add(currentSpeaker, 'dual-mode');
+                    
+                    try {
+                        const response = await fetch(speakerModel.apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${speakerModel.apiKey}` },
+                            body: JSON.stringify({ model: speakerModel.name, messages: [{ role: 'user', content: prompt }], max_tokens: 2000, temperature: 0.7 })
+                        });
+                        
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        
+                        const data = await response.json(), 
+                              reply = data.choices[0].message?.content || '';
+                        
+                        loadingElement.remove();
+                        const messageElement = addMessage(reply, false, false, calculateTokens(reply));
+                        messageElement.classList.add(currentSpeaker, 'dual-mode');
+                        messageElement.querySelector('.message-bubble').setAttribute('data-model-name', `[${speakerModel.displayName} 回应主持人]`);
+                        dualModelHistory.push({ role: 'assistant', content: reply, model: currentSpeaker });
+                        currentSpeaker = currentSpeaker === 'gemini' ? 'grok' : 'gemini';
+                        roundCount++;
+                        updateRoundCounter();
+                    } catch (error) {
+                        loadingElement.remove(); 
+                        addMessage(`❌ ${speakerModel.displayName} 回应失败: ${error.message}`, false);
+                    } finally { 
+                        setStatus('idle'); 
+                        controls.forEach(btn => btn.disabled = false); 
+                    }
+                }
+            }
+        }
+
+        async function continueDualModelConversation() {
+            const controls = document.querySelectorAll('.control-btn'); 
+            controls.forEach(btn => btn.disabled = true);
+            setStatus('thinking');
+            
+            const speakerModel = MODEL_CONFIGS[currentSpeaker], 
+                  opponentModel = currentSpeaker === 'gemini' ? 'grok' : 'gemini';
+            
+            let prompt = '';
+            if (dualModelHistory.length === 1) {
+                prompt = `请就以下话题发表你的观点，要求逻辑清晰、论据充分：\n\n${dualModelTopic}`;
+            } else {
+                const combinedHistory = [];
+                dualModelHistory.forEach(msg => {
+                    if (msg.role === 'assistant') {
+                        const speaker = msg.model === 'gemini' ? 'Gemini' : 'Grok';
+                        combinedHistory.push(`${speaker}: ${msg.content.substring(0, 200)}`);
+                    } else {
+                        if (msg.type === 'third_party_discussion') {
+                            combinedHistory.push(`主持人: ${msg.content.substring(0, 200)}`);
+                        } else {
+                            combinedHistory.push(`用户: ${msg.content.substring(0, 200)}`);
+                        }
+                    }
+                });
+                
+                const historyText = combinedHistory.join('\n\n');
+                
+                prompt = `你正在与另一个AI进行深度对话。请基于以下完整讨论历史（包含主持人发言），继续发表你的观点：
+
+**讨论话题**：${dualModelTopic}
+
+**完整对话历史**：
+${historyText}
+
+**当前发言者**：${speakerModel.displayName}
+
+**要求**：
+1. 参考前面所有讨论内容（包括主持人发言）
+2. 如果主持人提出了观点，请识别并回应
+3. 补充新论据、反驳对方观点或深化讨论
+4. 保持逻辑连贯性和对话的自然延续`;
+            }
+            
+            const loadingMsg = `[${speakerModel.displayName}] 思考中...`;
+            const loadingElement = addMessage(loadingMsg, false, true); 
+            loadingElement.classList.add(currentSpeaker, 'dual-mode');
+            
+            try {
+                const response = await fetch(speakerModel.apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${speakerModel.apiKey}` },
+                    body: JSON.stringify({ model: speakerModel.name, messages: [{ role: 'user', content: prompt }], max_tokens: 2500, temperature: 0.8 })
+                });
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json(), 
+                      reply = data.choices[0].message?.content || '';
+                
+                loadingElement.remove();
+                const messageElement = addMessage(reply, false, false, calculateTokens(reply));
+                messageElement.classList.add(currentSpeaker, 'dual-mode');
+                messageElement.querySelector('.message-bubble').setAttribute('data-model-name', `[${speakerModel.displayName} - 第${roundCount}轮]`);
+                dualModelHistory.push({ role: 'assistant', content: reply, model: currentSpeaker });
+                currentSpeaker = opponentModel; 
+                roundCount++; 
+                updateRoundCounter();
+            } catch (error) {
+                loadingElement.remove(); 
+                addMessage(`❌ ${speakerModel.displayName} 请求失败：${error.message}`, false);
+            } finally { 
+                setStatus('idle'); 
+                controls.forEach(btn => btn.disabled = false); 
+            }
+        }
+
+        async function summarizeDualModel() {
+            const summarizeBtn = document.querySelector('.control-btn:nth-child(4)'); 
+            summarizeBtn.disabled = true; 
+            summarizeBtn.textContent = '总结中...';
+            setStatus('thinking');
+            
+            (async () => {
+                try {
+                    const aiMessages = dualModelHistory.filter(h => h.role === 'assistant');
+                    const summaryPrompt = `请总结以下对话的核心观点、分歧和逻辑：
+
+**话题**：${dualModelTopic}
+
+**对话**：
+${aiMessages.map((msg, idx) => {
+    const speaker = msg.model === 'gemini' ? 'Gemini' : 'Grok';
+    return `${speaker}(第${idx+1}轮): ${msg.content}`;
+}).join('\n\n')}
+
+输出: 1. 核心论点 2. 主要分歧 3. 逻辑对比 4. 未解问题`;
+                    
+                    const response = await fetch(MODEL_CONFIGS.gemini.apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${MODEL_CONFIGS.gemini.apiKey}` },
+                        body: JSON.stringify({ model: MODEL_CONFIGS.gemini.name, messages: [{ role: 'user', content: summaryPrompt }], max_tokens: 1500, temperature: 0.5 })
+                    });
+                    
+                    const data = await response.json(), 
+                          summary = data.choices[0].message?.content || '';
+                    
+                    const summaryElement = addMessage(`📊 观点总结\n\n${summary}`, false);
+                    summaryElement.style.background = 'rgba(74, 144, 226, 0.15)'; 
+                    summaryElement.style.border = '1px solid #4A90E2';
+                } catch (error) { 
+                    addMessage(`❌ 总结失败: ${error.message}`, false); 
+                } finally { 
+                    setStatus('idle'); 
+                    summarizeBtn.disabled = false; 
+                    summarizeBtn.textContent = '总结观点'; 
+                }
+            })();
+        }
+
+        function endDualModelMode() {
+            addMessage(`🏁 双模型对战已结束\n\n共进行了 ${roundCount-1} 轮对话\n话题：${dualModelTopic || '未命名'}`, false);
+            dualModelHistory = []; 
+            dualModelTopic = ''; 
+            roundCount = 1; 
+            updateRoundCounter(); 
+            currentSpeaker = 'gemini';
+            toggleDualModelMode();
+        }
+
+        function switchModel() {
+            const select = document.getElementById('modelSelect'); 
+            currentModel = MODEL_CONFIGS[select.value];
+            conversationHistory = []; 
+            messageIdCounter = 0; 
+            document.getElementById('chatContainer').innerHTML = ''; 
+            updateModelDisplay();
+            
+            addMessage(`🔄 已切换至 ${currentModel.name}\n\n✅ 配置已加载\n✅ Token限制: ${currentModel.maxTokens}\n✅ 对话历史已清空`, false);
+            tokenUsage = 0; 
+            updateTokenCount();
+        }
+
+        function updateModelDisplay() { 
+            document.getElementById('modelNameDisplay').textContent = currentModel.name; 
+        }
+
+        function setupInputHandling() {
+            const textarea = document.getElementById('messageInput');
+            
+            // 自适应高度
+            textarea.addEventListener('input', function() { 
+                this.style.height = 'auto'; 
+                this.style.height = Math.min(this.scrollHeight, 200) + 'px'; 
+                updateTokenCount(); 
+            });
+            
+            // 回车发送
+            textarea.addEventListener('keydown', function(e) { 
+                if (e.key === 'Enter' && !e.shiftKey) { 
+                    e.preventDefault(); 
+                    sendMessage(); 
+                } 
+            });
+            
+            // 焦点时显示提示
+            textarea.addEventListener('focus', function() {
+                if (isDualModelMode) {
+                    if (!dualModelTopic) {
+                        showHint('智能模式：请输入讨论话题开始对战');
+                    } else {
+                        showHint('智能模式：现在可以加入讨论或使用控制面板');
+                    }
+                }
+            });
+            
+            textarea.addEventListener('blur', hideHint);
+        }
+
+        function showHint(text) {
+            const hint = document.getElementById('modeHint');
+            hint.textContent = text;
+            hint.classList.add('show');
+            
+            // 5秒后自动隐藏
+            setTimeout(hideHint, 5000);
+        }
+
+        function hideHint() {
+            const hint = document.getElementById('modeHint');
+            hint.classList.remove('show');
+        }
+
+        function updateTokenCount() {
+            const input = document.getElementById('messageInput').value || '';
+            const historyTokens = conversationHistory.reduce((sum, msg) => sum + Math.ceil(msg.content.length / 4), 0);
+            const inputTokens = Math.ceil(input.length / 4);
+            tokenUsage = historyTokens + inputTokens;
+            const percentage = Math.min((tokenUsage / currentModel.maxTokens) * 100, 100);
+            const color = percentage > 90 ? '#ff4444' : percentage > 70 ? '#ffaa00' : '#4A90E2';
+            document.getElementById('tokenCount').innerHTML = `<span style="color: ${color}">${tokenUsage}/${currentModel.maxTokens}</span>`;
+            return tokenUsage;
+        }
+
+        function calculateTokens(text) { 
+            return Math.ceil(text.length / 4); 
+        }
+
+        function setStatus(status) {
+            const dot = document.getElementById('statusDot'), 
+                  text = document.getElementById('statusText');
+            dot.className = 'status-dot';
+            
+            switch(status) {
+                case 'idle': 
+                    text.textContent = '空闲'; 
+                    break;
+                case 'thinking': 
+                    dot.classList.add('thinking'); 
+                    text.textContent = '思考中'; 
+                    break;
+                case 'active': 
+                    dot.classList.add('active'); 
+                    text.textContent = '在线'; 
+                    break;
+            }
+        }
+
+        function addMessage(content, isUser = false, isLoading = false, tokenCount = null) {
+            const chatContainer = document.getElementById('chatContainer'), 
+                  messageDiv = document.createElement('div'), 
+                  messageId = 'msg-' + (++messageIdCounter);
+            
+            messageDiv.dataset.messageId = messageId; 
+            messageDiv.className = `message ${isUser ? 'user' : 'ai'}`;
+            
+            const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            
+            if (isLoading) {
+                messageDiv.innerHTML = `<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div><div class="message-footer"><span></span><span class="message-time">${time}</span></div>`;
+            } else {
+                const tokenDisplay = tokenCount !== null ? `<span class="token-info">${tokenCount} tokens</span>` : '<span></span>';
+                messageDiv.innerHTML = `<div class="message-bubble">${escapeHtml(content)}</div><div class="message-footer">${tokenDisplay}<span class="message-time">${time}</span></div>`;
+            }
+            
+            chatContainer.appendChild(messageDiv); 
+            chatContainer.scrollTop = chatContainer.scrollHeight; 
+            return messageDiv;
+        }
+
+        function escapeHtml(text) { 
+            const div = document.createElement('div'); 
+            div.textContent = text; 
+            return div.innerHTML; 
+        }
+    </script>
+</body>
+</html>
