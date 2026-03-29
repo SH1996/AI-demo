@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI地图品牌分析 - AI地点助手版</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .header h1 { font-size: 16px; font-weight: 600; }
+        .header-actions { display: flex; gap: 8px; }
+        .header-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .header-btn:hover { background: rgba(255,255,255,0.3); }
+        .header-btn.ai { background: rgba(255,255,255,0.35); font-weight: 600; }
+        .header-btn.ai:hover { background: rgba(255,255,255,0.45); }
+        
+        .panel {
+            background: white;
+            padding: 16px;
+            display: none;
+            border-bottom: 1px solid #e0e0e0;
+            max-height: 75vh;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        .panel.show { display: block; }
+        
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .input-group { margin-bottom: 12px; }
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+        .input-group input, .input-group textarea, .input-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        .input-group input[type="password"] {
+            font-family: monospace;
+            letter-spacing: 1px;
+        }
+        .input-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            width: 100%;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: 8px;
+        }
+        .btn-success {
+            background: #52c41a;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            width: 100%;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .btn-warning {
+            background: #faad14;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            width: 100%;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .btn-small {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        
+        .prompt-box {
+            background: #f0f0ff;
+            border: 1px dashed #667eea;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 12px 0;
+            font-size: 13px;
+            color: #333;
+        }
+        .prompt-box .title {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+        .copy-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            padding-bottom: 100px;
+        }
+        
+        .message {
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+        .message.user { align-items: flex-end; }
+        .message.ai { align-items: flex-start; }
+        .message-bubble {
+            max-width: 90%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.7;
+            word-break: break-word;
+        }
+        .message.user .message-bubble {
+            background: #667eea;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .message.ai .message-bubble {
+            background: white;
+            color: #333;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .message-time {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+        }
+        
+        .ai-avatar {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        .message.ai {
+            flex-direction: row;
+            align-items: flex-start;
+        }
+        .message.ai .message-content {
+            display: flex;
+            flex-direction: column;
+            max-width: calc(100% - 44px);
+        }
+        
+        .phase-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 8px 0;
+            border-left: 4px solid #667eea;
+        }
+        .phase-title {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 12px;
+            font-size: 15px;
+        }
+        .phase-content {
+            font-size: 14px;
+            color: #333;
+            line-height: 1.8;
+        }
+        
+        .brand-section { margin: 8px 0; }
+        .brand-title {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 6px;
+        }
+        .brand-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .brand-tag {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .brand-tag.hot {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+        .brand-tag.normal {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+        .brand-tag.general {
+            background: #f5f5f5;
+            color: #616161;
+        }
+        
+        .layer-section {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 12px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .layer-title {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .layer-title.core { color: #c62828; }
+        .layer-title.near { color: #d84315; }
+        .layer-title.mid { color: #f57c00; }
+        .layer-title.far { color: #388e3c; }
+        
+        .shop-list {
+            font-size: 13px;
+            line-height: 2;
+        }
+        .shop-item {
+            padding: 4px 0;
+            border-bottom: 1px dashed #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+        .shop-item:last-child { border-bottom: none; }
+        .shop-tag {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-right: 6px;
+        }
+        .shop-tag.hot { background: #ffebee; color: #c62828; }
+        .shop-tag.local { background: #e3f2fd; color: #1565c0; }
+        .shop-tag.general { background: #f5f5f5; color: #616161; }
+        .shop-dist {
+            color: #999;
+            font-size: 12px;
+        }
+        
+        .copy-md-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+        
+        .summary-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin: 12px 0;
+        }
+        .summary-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+        .summary-stats {
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+        }
+        
+        .input-area {
+            background: white;
+            padding: 12px 16px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            flex-shrink: 0;
+        }
+        .chat-input {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            padding: 12px 16px;
+            font-size: 15px;
+            resize: none;
+            max-height: 120px;
+            min-height: 44px;
+            font-family: inherit;
+        }
+        .chat-input:focus { outline: none; border-color: #667eea; }
+        .send-btn {
+            width: 44px;
+            height: 44px;
+            background: #667eea;
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .send-btn:disabled { background: #ccc; }
+        
+        .toast {
+            position: fixed;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 1000;
+            display: none;
+            color: white;
+        }
+        .toast.error { background: #ff4444; }
+        .toast.success { background: #52c41a; }
+        .toast.show { display: block; }
+        
+        .quick-actions {
+            display: flex;
+            gap: 8px;
+            padding: 8px 12px;
+            overflow-x: auto;
+            flex-shrink: 0;
+            background: white;
+        }
+        .quick-btn {
+            background: #f0f0ff;
+            color: #667eea;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 16px;
+            font-size: 13px;
+            white-space: nowrap;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        
+        /* AI对话样式 */
+        .ai-config-compact {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            border: 1px solid #e0e0e0;
+        }
+        .ai-config-compact .input-group {
+            margin-bottom: 8px;
+        }
+        .ai-config-compact .input-group:last-child {
+            margin-bottom: 0;
+        }
+        .ai-chat-container {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+        }
+        .ai-chat-message {
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+        .ai-chat-message.user {
+            align-items: flex-end;
+        }
+        .ai-chat-message.assistant {
+            align-items: flex-start;
+        }
+        .ai-chat-bubble {
+            max-width: 85%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .ai-chat-message.user .ai-chat-bubble {
+            background: #667eea;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .ai-chat-message.assistant .ai-chat-bubble {
+            background: white;
+            color: #333;
+            border: 1px solid #e0e0e0;
+            border-bottom-left-radius: 4px;
+        }
+        .ai-chat-time {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+        }
+        
+        /* 地点卡片列表样式 - 新增 */
+        .location-list-container {
+            background: white;
+            border-radius: 12px;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #e0e0e0;
+            max-width: 100%;
+        }
+        .location-list-header {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px dashed #e0e0e0;
+        }
+        .location-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .location-item:last-child {
+            border-bottom: none;
+        }
+        .location-info {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .location-number {
+            width: 24px;
+            height: 24px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        .location-name {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+        }
+        .location-desc {
+            font-size: 12px;
+            color: #999;
+            margin-top: 2px;
+        }
+        .query-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 16px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            margin-left: 8px;
+        }
+        .query-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+        }
+        .query-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .ai-input-area {
+            display: flex;
+            gap: 8px;
+        }
+        .ai-input-area input {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .hint-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+        
+        /* 加载动画 */
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 12px 16px;
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e0e0e0;
+            width: fit-content;
+        }
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🤖 AI地图品牌分析</h1>
+        <div class="header-actions">
+            <button class="header-btn ai" onclick="toggleAIAssistant()">🚀 AI地点助手</button>
+            <button class="header-btn" onclick="toggleConfig()">⚙️ 配置</button>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+    
+    <!-- AI地点助手面板 -->
+    <div class="panel" id="aiAssistantPanel">
+        <div class="panel-title">🚀 AI地点助手</div>
+        
+        <!-- AI配置区（紧凑） -->
+        <div class="ai-config-compact">
+            <div class="input-group">
+                <label style="font-size:12px;">🌐 AI接口地址</label>
+                <input type="text" id="aiUrl" placeholder="https://api.example.com/v1/chat/completions" style="font-size:13px;padding:8px;">
+            </div>
+            <div class="input-group">
+                <label style="font-size:12px;">🔐 API Key</label>
+                <input type="password" id="aiKey" placeholder="sk-..." style="font-size:13px;padding:8px;">
+            </div>
+            <div class="input-group">
+                <label style="font-size:12px;">🤖 模型名称（自由填写）</label>
+                <input type="text" id="aiModel" placeholder="例如：gpt-4o、claude-3-5-sonnet、deepseek-chat..." style="font-size:13px;padding:8px;">
+            </div>
+            <button class="btn-small" onclick="saveAIConfig()" style="width:100%;margin-top:8px;">💾 保存AI配置</button>
+        </div>
+        
+        <!-- 对话历史 -->
+        <div class="ai-chat-container" id="aiChatHistory">
+            <div class="ai-chat-message assistant">
+                <div class="ai-chat-bubble">
+                    你好！我是AI地点助手。你可以问我：<br><br>
+                    • "中关村附近有哪些大学？"<br>
+                    • "三里屯附近有什么商圈？"<br>
+                    • "望京有哪些写字楼？"<br><br>
+                    我会以列表形式展示地点，每个地点后面都有"查询"按钮，点击即可直接分析该地点周边的店铺！
+                </div>
+                <div class="ai-chat-time">刚刚</div>
+            </div>
+        </div>
+        
+        <!-- 输入区 -->
+        <div class="ai-input-area">
+            <input type="text" id="aiChatInput" placeholder="输入你想问的问题..." onkeypress="if(event.key==='Enter')sendAIMessage()">
+            <button class="btn-small" onclick="sendAIMessage()" style="white-space:nowrap;">发送</button>
+        </div>
+        <div class="hint-text">
+            💡 <b>使用技巧：</b><br>
+            1. 询问某区域的地点列表（如"附近有哪些大学"）<br>
+            2. AI会返回带编号的地点列表，每行一个<br>
+            3. 点击地点后面的"查询"按钮，一键分析该地点！
+        </div>
+    </div>
+    
+    <!-- 配置面板（仅高德Key和品牌导入） -->
+    <div class="panel" id="configPanel">
+        <div class="panel-title">⚙️ 基础配置</div>
+        
+        <div class="input-group">
+            <label>🔑 高德地图 Key（必填）</label>
+            <input type="password" id="amapKey" placeholder="输入高德地图API Key">
+        </div>
+        
+        <hr style="margin:16px 0;border:none;border-top:1px solid #eee;">
+        
+        <div class="prompt-box">
+            <div class="title">📋 第1步：复制指令给豆包</div>
+            <div style="background:white;padding:8px;border-radius:4px;font-size:12px;max-height:100px;overflow:auto;white-space:pre-wrap;">
+任务：搜索2024-2025年中国【炸鸡汉堡】行业的热门品牌清单
+
+请按以下格式输出：
+
+【行业名称】炸鸡汉堡
+
+【热门连锁品牌】（全国知名，门店1000+）
+- 品牌名1
+- 品牌名2
+...
+
+【地方/新兴品牌】（区域知名，特色品牌）
+- 品牌名1
+- 品牌名2
+...
+
+【相关通用词】（用于兜底搜索）
+- 通用词1
+- 通用词2
+...
+
+要求：
+1. 只输出真实存在的品牌名
+2. 区分全国连锁和地方品牌
+3. 数量：热门品牌10-15个，地方品牌5-8个，通用词3-5个
+            </div>
+            <button class="copy-btn" onclick="copyPrompt()">📋 复制完整指令</button>
+        </div>
+        
+        <div class="input-group">
+            <label>📥 第2步：粘贴豆包返回的品牌列表</label>
+            <textarea id="importBrands" placeholder="把豆包返回的品牌列表粘贴到这里..."></textarea>
+        </div>
+        
+        <button class="btn-success" onclick="importBrands()">✅ 第3步：导入品牌库</button>
+        
+        <hr style="margin:16px 0;border:none;border-top:1px solid #eee;">
+        
+        <button class="btn-primary" onclick="saveConfig()">💾 保存基础配置</button>
+    </div>
+    
+    <div class="main-content">
+        <div class="quick-actions">
+            <button class="quick-btn" onclick="quickAsk('梓潼县炸鸡汉堡店')">🍗 梓潼炸鸡</button>
+            <button class="quick-btn" onclick="quickAsk('三里屯奶茶店')">🧋 三里屯奶茶</button>
+            <button class="quick-btn" onclick="quickAsk('望京火锅店')">🍲 望京火锅</button>
+            <button class="quick-btn" onclick="quickAsk('中关村咖啡店')">☕ 中关村咖啡</button>
+        </div>
+        
+        <div class="chat-container" id="chatContainer">
+            <div class="message ai">
+                <div class="ai-avatar">🤖</div>
+                <div class="message-content">
+                    <div class="message-bubble">
+                        <b>AI地图品牌分析助手</b> 🗺️<br><br>
+                        <b>【单点查询】</b> 直接输入地点，如：「三里屯奶茶店」<br><br>
+                        <b>【AI地点助手】</b> 点击右上角 🚀 <b>AI地点助手</b>：<br>
+                        1. 配置AI接口（URL/Key/模型名称自己填）<br>
+                        2. 和AI对话问："附近有哪些大学？"<br>
+                        3. <b>AI返回带编号的地点列表，每行一个地点</b><br>
+                        4. <b style="color:#667eea;">点击"查询"按钮，一键分析该地点！</b><br><br>
+                        <b>结果分层：</b> 500m核心圈 / 1km近圈 / 3km中圈 / 5km远圈
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="input-area">
+            <textarea class="chat-input" id="chatInput" placeholder="输入你想分析的内容，如：梓潼县炸鸡汉堡店..." rows="1"></textarea>
+            <button class="send-btn" id="sendBtn" onclick="handleUserInput()">➤</button>
+        </div>
+    </div>
+
+    <script>
+        let isProcessing = false;
+        let currentPosition = null;
+        let allPOIs = [];
+        let importedBrandData = null;
+        let lastResultMarkdown = '';
+        
+        // 默认品牌库
+        const defaultBrandDB = {
+            '炸鸡': {
+                hot: ['正新鸡排', '叫了只炸鸡', '第一佳大鸡排', '豪大大香鸡排', '大脸鸡排'],
+                local: ['韩式炸鸡', '美式炸鸡', '老北京炸鸡', '香酥炸鸡'],
+                general: ['炸鸡', '炸鸡店', '鸡排店']
+            },
+            '汉堡': {
+                hot: ['麦当劳', '肯德基', '汉堡王', '华莱士', '塔斯汀中国汉堡', '德克士', '派乐汉堡'],
+                local: ['牛肉汉堡', '手工汉堡', '美式汉堡'],
+                general: ['汉堡', '汉堡店', '炸鸡汉堡']
+            },
+            '奶茶': {
+                hot: ['蜜雪冰城', '茶百道', '古茗', '书亦烧仙草', '沪上阿姨', '喜茶', '奈雪的茶'],
+                local: ['台式奶茶', '港式奶茶', '手工奶茶'],
+                general: ['奶茶', '奶茶店', '茶饮']
+            },
+            '咖啡': {
+                hot: ['瑞幸咖啡', '星巴克', '库迪咖啡', 'Manner咖啡', 'Tims咖啡'],
+                local: ['精品咖啡', '手冲咖啡'],
+                general: ['咖啡', '咖啡店']
+            },
+            '火锅': {
+                hot: ['海底捞', '小龙坎', '巴奴毛肚火锅', '蜀大侠', '德庄火锅'],
+                local: ['重庆火锅', '四川火锅', '老北京涮肉'],
+                general: ['火锅', '火锅店']
+            },
+            '烧烤': {
+                hot: ['木屋烧烤', '很久以前羊肉串'],
+                local: ['东北烧烤', '新疆烧烤', '韩式烤肉'],
+                general: ['烧烤', '烧烤店']
+            }
+        };
+        
+        const fullPrompt = `任务：搜索2024-2025年中国【炸鸡汉堡】行业的热门品牌清单
+
+请按以下格式输出：
+
+【行业名称】炸鸡汉堡
+
+【热门连锁品牌】（全国知名，门店1000+）
+- 品牌名1
+- 品牌名2
+...
+
+【地方/新兴品牌】（区域知名，特色品牌）
+- 品牌名1
+- 品牌名2
+...
+
+【相关通用词】（用于兜底搜索）
+- 通用词1
+- 通用词2
+...
+
+要求：
+1. 只输出真实存在的品牌名
+2. 区分全国连锁和地方品牌
+3. 数量：热门品牌10-15个，地方品牌5-8个，通用词3-5个`;
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            loadConfig();
+            document.getElementById('chatInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleUserInput();
+                }
+            });
+        });
+        
+        // 配置管理
+        function loadConfig() {
+            const config = localStorage.getItem('brand_map_config_v5');
+            if (config) {
+                const c = JSON.parse(config);
+                document.getElementById('amapKey').value = c.amapKey || '';
+                if (c.importedBrands) {
+                    importedBrandData = c.importedBrands;
+                    document.getElementById('importBrands').value = c.importedBrandsText || '';
+                }
+            }
+            
+            const aiConfig = localStorage.getItem('ai_assistant_config');
+            if (aiConfig) {
+                const c = JSON.parse(aiConfig);
+                document.getElementById('aiUrl').value = c.aiUrl || '';
+                document.getElementById('aiKey').value = c.aiKey || '';
+                document.getElementById('aiModel').value = c.aiModel || '';
+            }
+        }
+        
+        function saveConfig() {
+            const config = {
+                amapKey: document.getElementById('amapKey').value,
+                importedBrands: importedBrandData,
+                importedBrandsText: document.getElementById('importBrands').value
+            };
+            localStorage.setItem('brand_map_config_v5', JSON.stringify(config));
+            showToast('✅ 基础配置已保存', 'success');
+            toggleConfig();
+        }
+        
+        function saveAIConfig() {
+            const config = {
+                aiUrl: document.getElementById('aiUrl').value,
+                aiKey: document.getElementById('aiKey').value,
+                aiModel: document.getElementById('aiModel').value
+            };
+            localStorage.setItem('ai_assistant_config', JSON.stringify(config));
+            showToast('✅ AI配置已保存', 'success');
+        }
+        
+        function getConfig() {
+            const config = localStorage.getItem('brand_map_config_v5');
+            return config ? JSON.parse(config) : {};
+        }
+        
+        function getAIConfig() {
+            const config = localStorage.getItem('ai_assistant_config');
+            return config ? JSON.parse(config) : {};
+        }
+        
+        // UI切换
+        function toggleConfig() {
+            const panel = document.getElementById('configPanel');
+            const aiPanel = document.getElementById('aiAssistantPanel');
+            panel.classList.toggle('show');
+            aiPanel.classList.remove('show');
+        }
+        
+        function toggleAIAssistant() {
+            const panel = document.getElementById('aiAssistantPanel');
+            const configPanel = document.getElementById('configPanel');
+            panel.classList.toggle('show');
+            configPanel.classList.remove('show');
+        }
+        
+        function showToast(msg, type = 'error') {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = 'toast ' + type + ' show';
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        
+        // 品牌导入功能
+        function copyPrompt() {
+            navigator.clipboard.writeText(fullPrompt).then(() => {
+                showToast('✅ 指令已复制', 'success');
+            }).catch(() => {
+                const textarea = document.createElement('textarea');
+                textarea.value = fullPrompt;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showToast('✅ 指令已复制', 'success');
+            });
+        }
+        
+        function importBrands() {
+            const text = document.getElementById('importBrands').value.trim();
+            if (!text) {
+                showToast('请先粘贴品牌列表');
+                return;
+            }
+            
+            try {
+                const parsed = parseBrandText(text);
+                importedBrandData = parsed;
+                showToast(`✅ 成功导入：${parsed.hot.length}个热门品牌`, 'success');
+                
+                addPhaseCard('📥 品牌库已更新', `
+                    <div class="brand-section">
+                        <div class="brand-title">🔥 热门连锁（${parsed.hot.length}个）</div>
+                        <div class="brand-tags">${parsed.hot.map(b => `<span class="brand-tag hot">${b}</span>`).join('')}</div>
+                    </div>
+                    ${parsed.local.length > 0 ? `
+                    <div class="brand-section">
+                        <div class="brand-title">📍 地方品牌（${parsed.local.length}个）</div>
+                        <div class="brand-tags">${parsed.local.map(b => `<span class="brand-tag normal">${b}</span>`).join('')}</div>
+                    </div>` : ''}
+                    <div class="brand-section">
+                        <div class="brand-title">🔍 通用词（${parsed.general.length}个）</div>
+                        <div class="brand-tags">${parsed.general.map(b => `<span class="brand-tag general">${b}</span>`).join('')}</div>
+                    </div>
+                `);
+            } catch (e) {
+                showToast('解析失败，请检查格式');
+            }
+        }
+        
+        function parseBrandText(text) {
+            const result = { hot: [], local: [], general: [], industry: '未知' };
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+            let currentSection = null;
+            
+            for (const line of lines) {
+                if (line.includes('【行业名称】')) {
+                    result.industry = line.replace('【行业名称】', '').trim();
+                    continue;
+                }
+                if (line.includes('【热门') || line.includes('【连锁')) {
+                    currentSection = 'hot';
+                    continue;
+                }
+                if (line.includes('【地方') || line.includes('【新兴')) {
+                    currentSection = 'local';
+                    continue;
+                }
+                if (line.includes('【通用') || line.includes('【相关')) {
+                    currentSection = 'general';
+                    continue;
+                }
+                const brandMatch = line.match(/^[-•·\d.\s]*(.+)$/);
+                if (brandMatch && currentSection) {
+                    const brand = brandMatch[1].trim();
+                    if (brand && brand.length >= 2 && !brand.includes('品牌名') && !brand.includes('通用词')) {
+                        result[currentSection].push(brand);
+                    }
+                }
+            }
+            return result;
+        }
+        
+        // 消息处理
+        function addMessage(text, isUser = false) {
+            const container = document.getElementById('chatContainer');
+            const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            
+            let html = '';
+            if (isUser) {
+                html = `
+                    <div class="message user">
+                        <div class="message-bubble">${escapeHtml(text)}</div>
+                        <div class="message-time">${time}</div>
+                    </div>
+                `;
+            } else {
+                html = `
+                    <div class="message ai">
+                        <div class="ai-avatar">🤖</div>
+                        <div class="message-content">
+                            <div class="message-bubble">${text}</div>
+                            <div class="message-time">${time}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.insertAdjacentHTML('beforeend', html);
+            container.scrollTop = container.scrollHeight;
+            return container.lastElementChild.querySelector('.message-bubble');
+        }
+        
+        function escapeHtml(text) {
+            return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+        
+        function addPhaseCard(title, content) {
+            const container = document.getElementById('chatContainer');
+            const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            
+            const html = `
+                <div class="message ai">
+                    <div class="ai-avatar">🤖</div>
+                    <div class="message-content">
+                        <div class="phase-card">
+                            <div class="phase-title">${title}</div>
+                            <div class="phase-content">${content}</div>
+                        </div>
+                        <div class="message-time">${time}</div>
+                    </div>
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('beforeend', html);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function quickAsk(text) {
+            document.getElementById('chatInput').value = text;
+            handleUserInput();
+        }
+        
+        // 行业检测
+        function detectIndustry(text) {
+            for (const industry of Object.keys(defaultBrandDB)) {
+                if (text.includes(industry)) return industry;
+            }
+            const mappings = {
+                '鸡排': '炸鸡', '炸物': '炸鸡', '鸡腿': '炸鸡',
+                '茶饮': '奶茶', '饮料': '奶茶',
+                '涮肉': '火锅', '串串': '火锅',
+                '烤肉': '烧烤', '烤串': '烧烤'
+            };
+            for (const [k, v] of Object.entries(mappings)) {
+                if (text.includes(k)) return v;
+            }
+            return '综合';
+        }
+        
+        function detectLocation(text) {
+            const patterns = [
+                /([\u4e00-\u9fa5]{2,}(?:校区|县|区|市|镇|乡|村|路|街|商圈|广场|大厦|中心|城|大学|学院|学校))/,
+                /(.+?)(?:附近|周围|周边|里面|内|的)/,
+            ];
+            for (const p of patterns) {
+                const m = text.match(p);
+                if (m && m[1].length >= 2) return m[1];
+            }
+            return null;
+        }
+        
+        function detectRadius(text) {
+            let r = 5000;
+            if (text.includes('附近')) r = 3000;
+            const km = text.match(/(\d+)\s*公里/);
+            if (km) r = parseInt(km[1]) * 1000;
+            return r;
+        }
+        
+        function getBrandKeywords(industry) {
+            if (importedBrandData) {
+                return importedBrandData;
+            }
+            for (const [key, val] of Object.entries(defaultBrandDB)) {
+                if (industry.includes(key) || key.includes(industry)) {
+                    return val;
+                }
+            }
+            return {
+                hot: [industry, industry + '店'],
+                local: [],
+                general: [industry]
+            };
+        }
+        
+        // ==================== AI地点助手核心功能（优化版）====================
+        
+        let aiConversationHistory = [];
+        
+        // 解析AI返回的列表内容
+        function parseLocationList(text) {
+            const locations = [];
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+            
+            for (const line of lines) {
+                // 匹配格式：一、XXX 或 1. XXX 或 - XXX 或 1、XXX
+                const match = line.match(/^(?:[一二三四五六七八九十百千万亿]+[、.]|\d+[、.]|[•\-])\s*(.+?)(?:[，,。]|$)/);
+                if (match) {
+                    let locationName = match[1].trim();
+                    // 清理常见后缀
+                    locationName = locationName.replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '').trim();
+                    if (locationName.length >= 2 && locationName.length <= 20) {
+                        locations.push({
+                            name: locationName,
+                            fullLine: line
+                        });
+                    }
+                    continue;
+                }
+                // 匹配格式：1. XXX 或 1、XXX（带空格版本）
+                const numMatch = line.match(/^(?:\d+|[一二三四五六七八九十])[、.\s]+(.+?)(?:[，,。]|$)/);
+                if (numMatch) {
+                    let locationName = numMatch[1].trim();
+                    locationName = locationName.replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '').trim();
+                    if (locationName.length >= 2 && locationName.length <= 20) {
+                        locations.push({
+                            name: locationName,
+                            fullLine: line
+                        });
+                    }
+                }
+            }
+            
+            return locations;
+        }
+        
+        async function sendAIMessage() {
+            const input = document.getElementById('aiChatInput');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            const aiConfig = getAIConfig();
+            if (!aiConfig.aiKey || !aiConfig.aiUrl || !aiConfig.aiModel) {
+                showToast('请先填写完整的AI配置（URL、Key、模型名称）');
+                return;
+            }
+            
+            // 检查是否是手动输入的查询指令
+            const queryMatch = message.match(/(?:查|查询|分析|搜)[一搜查]?[一下个]?(.+)/);
+            if (queryMatch) {
+                const location = queryMatch[1].trim();
+                toggleAIAssistant();
+                addMessage(`🚀 通过AI助手查询：${location}`, true);
+                await analyzeSingleLocation(location, '综合', 5000);
+                input.value = '';
+                return;
+            }
+            
+            // 显示用户消息
+            addAIMessage(message, 'user');
+            input.value = '';
+            
+            // 显示加载动画
+            showAITypingIndicator();
+            
+            try {
+                const systemPrompt = `你是地点推荐助手。用户询问某个区域有哪些地点（如大学、商圈、写字楼等），你需要列出该区域内相关地点。
+
+重要规则：
+1. 必须使用列表格式回复，每行一个地点，格式为："一、地点名" 或 "1. 地点名"
+2. 只列出地点名称，不要有过多描述
+3. 当用户想查询某个具体地点时，他会说"查XX"或"查询XX"，这时你只需要回复确认即可
+
+示例回复格式：
+一、北京大学
+二、清华大学  
+三、中国人民大学
+四、北京航空航天大学`;
+                
+                const messages = [
+                    { role: 'system', content: systemPrompt },
+                    ...aiConversationHistory.slice(-10).map(m => ({ role: m.role, content: m.content })),
+                    { role: 'user', content: message }
+                ];
+                
+                const response = await fetch(aiConfig.aiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${aiConfig.aiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: aiConfig.aiModel,
+                        messages: messages,
+                        temperature: 0.7
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error(data.error.message || 'AI接口错误');
+                }
+                
+                const aiResponse = data.choices[0].message.content;
+                
+                // 移除加载动画
+                removeAITypingIndicator();
+                
+                // 解析是否为地点列表
+                const locations = parseLocationList(aiResponse);
+                
+                if (locations.length >= 2) {
+                    // 是列表，显示为卡片形式
+                    addLocationListMessage(aiResponse, locations);
+                } else {
+                    // 不是列表，普通文本显示
+                    addAIMessage(aiResponse, 'assistant');
+                }
+                
+            } catch (err) {
+                removeAITypingIndicator();
+                showToast('AI对话失败：' + err.message);
+                addAIMessage('抱歉，AI接口调用失败，请检查配置是否正确。', 'assistant');
+            }
+        }
+        
+        function showAITypingIndicator() {
+            const container = document.getElementById('aiChatHistory');
+            const html = `
+                <div class="ai-chat-message assistant" id="typingIndicator">
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function removeAITypingIndicator() {
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) indicator.remove();
+        }
+        
+        // 新增：显示地点列表卡片
+        function addLocationListMessage(originalText, locations) {
+            const container = document.getElementById('aiChatHistory');
+            const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            
+            // 提取AI回复的引言部分（列表前的文字）
+            let introText = originalText;
+            const firstListIndex = originalText.search(/(?:[一二三四五六七八九十百千万亿]+[、.]|\d+[、.]|[•\-])\s*/);
+            if (firstListIndex > 0) {
+                introText = originalText.substring(0, firstListIndex).trim();
+            } else {
+                introText = '为您找到以下地点：';
+            }
+            
+            let locationsHtml = locations.map((loc, index) => `
+                <div class="location-item">
+                    <div class="location-info">
+                        <div class="location-number">${index + 1}</div>
+                        <div>
+                            <div class="location-name">${escapeHtml(loc.name)}</div>
+                        </div>
+                    </div>
+                    <button class="query-btn" onclick="queryLocationFromAI('${escapeHtml(loc.name.replace(/'/g, "\\'"))}')">🔍 查询</button>
+                </div>
+            `).join('');
+            
+            const html = `
+                <div class="ai-chat-message assistant">
+                    <div style="max-width: 90%; margin-bottom: 8px; padding: 10px 14px; background: white; border: 1px solid #e0e0e0; border-radius: 12px; border-bottom-left-radius: 4px; font-size: 14px; line-height: 1.6;">
+                        ${escapeHtml(introText)}
+                    </div>
+                    <div class="location-list-container">
+                        <div class="location-list-header">📍 找到 ${locations.length} 个地点，点击"查询"按钮一键分析：</div>
+                        ${locationsHtml}
+                    </div>
+                    <div class="ai-chat-time">${time}</div>
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('beforeend', html);
+            container.scrollTop = container.scrollHeight;
+            
+            // 保存到历史
+            aiConversationHistory.push({ role: 'assistant', content: originalText, time: time });
+        }
+        
+        function addAIMessage(text, role) {
+            const container = document.getElementById('aiChatHistory');
+            const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            
+            // 保存到历史
+            aiConversationHistory.push({ role: role, content: text, time: time });
+            if (aiConversationHistory.length > 20) {
+                aiConversationHistory = aiConversationHistory.slice(-20);
+            }
+            
+            const html = `
+                <div class="ai-chat-message ${role}">
+                    <div class="ai-chat-bubble">${escapeHtml(text)}</div>
+                    <div class="ai-chat-time">${time}</div>
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('beforeend', html);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        // 从AI地点列表点击查询
+        async function queryLocationFromAI(locationName) {
+            // 关闭AI面板
+            toggleAIAssistant();
+            
+            // 在主界面添加提示
+            addMessage(`🚀 查询 "${locationName}" 周边店铺`, true);
+            
+            // 执行查询
+            await analyzeSingleLocation(locationName, '综合', 5000);
+        }
+        
+        // ==================== 单点查询核心逻辑 ====================
+        
+        async function handleUserInput() {
+            if (isProcessing) return;
+            
+            const input = document.getElementById('chatInput');
+            const userQuery = input.value.trim();
+            if (!userQuery) return;
+            
+            const config = getConfig();
+            if (!config.amapKey) {
+                showToast('请先配置高德地图Key');
+                toggleConfig();
+                return;
+            }
+            
+            addMessage(userQuery, true);
+            input.value = '';
+            isProcessing = true;
+            document.getElementById('sendBtn').disabled = true;
+            lastResultMarkdown = '';
+            
+            try {
+                const industry = detectIndustry(userQuery);
+                const location = detectLocation(userQuery);
+                const radius = detectRadius(userQuery);
+                
+                if (!location) {
+                    addMessage('❌ 请明确说出地点名称，例如"三里屯奶茶店"');
+                    isProcessing = false;
+                    document.getElementById('sendBtn').disabled = false;
+                    return;
+                }
+                
+                await analyzeSingleLocation(location, industry, radius);
+                
+            } catch (err) {
+                console.error(err);
+                addMessage(`❌ 出错：${err.message}`);
+            } finally {
+                isProcessing = false;
+                document.getElementById('sendBtn').disabled = false;
+            }
+        }
+        
+        async function analyzeSingleLocation(location, industry, radius) {
+            const config = getConfig();
+            const brandData = getBrandKeywords(industry);
+            
+            // 步骤1
+            addPhaseCard('📋 步骤1：需求识别', `
+                <b>查询地点：</b>${location}<br>
+                <b>行业类型：</b>${industry}<br>
+                <b>搜索半径：</b>${radius/1000}公里<br>
+                <b>品牌来源：</b>${importedBrandData ? '豆包导入数据' : '内置品牌库'}
+            `);
+            
+            // 步骤2
+            addPhaseCard('🏷️ 步骤2：品牌关键词库', `
+                <div class="brand-section">
+                    <div class="brand-title">🔥 热门连锁（${brandData.hot.length}个）</div>
+                    <div class="brand-tags">${brandData.hot.map(b => `<span class="brand-tag hot">${b}</span>`).join('')}</div>
+                </div>
+                ${brandData.local.length > 0 ? `
+                <div class="brand-section">
+                    <div class="brand-title">📍 地方品牌（${brandData.local.length}个）</div>
+                    <div class="brand-tags">${brandData.local.map(b => `<span class="brand-tag normal">${b}</span>`).join('')}</div>
+                </div>` : ''}
+                <div class="brand-section">
+                    <div class="brand-title">🔍 通用词（${brandData.general.length}个）</div>
+                    <div class="brand-tags">${brandData.general.map(b => `<span class="brand-tag general">${b}</span>`).join('')}</div>
+                </div>
+            `);
+            
+            // 步骤3
+            addPhaseCard('📍 步骤3：地理定位', '正在获取坐标...');
+            
+            const coords = await geocode(location, config);
+            if (!coords) {
+                addMessage('❌ 无法定位该地点，请检查地点名称是否正确');
+                return;
+            }
+            currentPosition = coords;
+            
+            // 步骤4：分层搜索
+            allPOIs = [];
+            const seen = new Set();
+            const allKeywords = [...brandData.hot, ...brandData.local, ...brandData.general];
+            
+            addPhaseCard('🔍 步骤4：分层深度搜索', `
+                准备搜索 ${allKeywords.length} 个关键词...
+                <div style="margin-top:12px;color:#667eea;">⏳ 正在搜索中...</div>
+            `);
+            
+            // 热门品牌（3页）
+            for (const brand of brandData.hot.slice(0, 10)) {
+                const results = await searchBrand(coords, brand, radius, config, 3);
+                for (const poi of results) {
+                    const key = `${poi.name}_${poi.address}`;
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        poi._brand = brand;
+                        poi._type = 'hot';
+                        allPOIs.push(poi);
+                    }
+                }
+                await sleep(150);
+            }
+            
+            // 地方品牌（2页）
+            for (const brand of brandData.local.slice(0, 5)) {
+                const results = await searchBrand(coords, brand, radius, config, 2);
+                for (const poi of results) {
+                    const key = `${poi.name}_${poi.address}`;
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        poi._brand = brand;
+                        poi._type = 'local';
+                        allPOIs.push(poi);
+                    }
+                }
+                await sleep(100);
+            }
+            
+            // 通用词（2页）
+            for (const word of brandData.general) {
+                const results = await searchBrand(coords, word, radius, config, 2);
+                for (const poi of results) {
+                    const key = `${poi.name}_${poi.address}`;
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        poi._brand = word;
+                        poi._type = 'general';
+                        allPOIs.push(poi);
+                    }
+                }
+                await sleep(100);
+            }
+            
+            // 按距离排序
+            allPOIs.sort((a, b) => parseInt(a.distance || 99999) - parseInt(b.distance || 99999));
+            
+            // 分层统计
+            const layers = {
+                core: allPOIs.filter(p => parseInt(p.distance || 99999) <= 500),
+                near: allPOIs.filter(p => { const d = parseInt(p.distance || 0); return d > 500 && d <= 1000; }),
+                mid: allPOIs.filter(p => { const d = parseInt(p.distance || 0); return d > 1000 && d <= 3000; }),
+                far: allPOIs.filter(p => { const d = parseInt(p.distance || 0); return d > 3000 && d <= 5000; })
+            };
+            
+            // 步骤5：汇总
+            addPhaseCard('📊 步骤5：搜索结果汇总', `
+                ✅ 搜索完成<br><br>
+                <b>总店铺数：${allPOIs.length} 家</b><br><br>
+                🔴 500米核心区：${layers.core.length} 家<br>
+                🟠 1公里近圈：${layers.near.length} 家<br>
+                🟡 3公里中圈：${layers.mid.length} 家<br>
+                🟢 5公里远圈：${layers.far.length} 家
+            `);
+            
+            // 生成分层结果
+            const layerHTML = generateLayerHTML(layers, location, industry);
+            lastResultMarkdown = generateMarkdown(layers, location, industry);
+            
+            // 显示结果
+            const container = document.getElementById('chatContainer');
+            const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            
+            const html = `
+                <div class="message ai">
+                    <div class="ai-avatar">📊</div>
+                    <div class="message-content">
+                        ${layerHTML}
+                        <div style="text-align:center;">
+                            <button class="copy-md-btn" onclick="copyMarkdown()">📋 复制Markdown报告</button>
+                        </div>
+                        <div class="message-time">${time}</div>
+                    </div>
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('beforeend', html);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function generateLayerHTML(layers, location, industry) {
+            let html = `<div class="message-bubble">
+                <b>📍 ${location} · ${industry} 分层分析报告</b><br>
+                <div style="color:#666;font-size:12px;margin:8px 0;">共找到 ${layers.core.length + layers.near.length + layers.mid.length + layers.far.length} 家店铺</div>
+            `;
+            
+            if (layers.core.length > 0) {
+                html += `<div class="layer-section">
+                    <div class="layer-title core">🔴 500米核心区（${layers.core.length}家）</div>
+                    <div class="shop-list">${layers.core.slice(0, 15).map((p, i) => `
+                        <div class="shop-item">
+                            <span>${i+1}. <span class="shop-tag ${p._type}">${p._type === 'hot' ? '热' : p._type === 'local' ? '地' : '通'}</span>${p.name}</span>
+                            <span class="shop-dist">${p.distance}m</span>
+                        </div>
+                    `).join('')}</div>
+                </div>`;
+            }
+            
+            if (layers.near.length > 0) {
+                html += `<div class="layer-section">
+                    <div class="layer-title near">🟠 500米-1公里近圈（${layers.near.length}家）</div>
+                    <div class="shop-list">${layers.near.slice(0, 10).map((p, i) => `
+                        <div class="shop-item">
+                            <span>${i+1}. <span class="shop-tag ${p._type}">${p._type === 'hot' ? '热' : p._type === 'local' ? '地' : '通'}</span>${p.name}</span>
+                            <span class="shop-dist">${(p.distance/1000).toFixed(2)}km</span>
+                        </div>
+                    `).join('')}</div>
+                </div>`;
+            }
+            
+            if (layers.mid.length > 0) {
+                html += `<div class="layer-section">
+                    <div class="layer-title mid">🟡 1公里-3公里中圈（${layers.mid.length}家）</div>
+                    <div class="shop-list">${layers.mid.slice(0, 8).map((p, i) => `
+                        <div class="shop-item">
+                            <span>${i+1}. <span class="shop-tag ${p._type}">${p._type === 'hot' ? '热' : p._type === 'local' ? '地' : '通'}</span>${p.name}</span>
+                            <span class="shop-dist">${(p.distance/1000).toFixed(2)}km</span>
+                        </div>
+                    `).join('')}</div>
+                </div>`;
+            }
+            
+            if (layers.far.length > 0) {
+                html += `<div class="layer-section">
+                    <div class="layer-title far">🟢 3公里-5公里远圈（${layers.far.length}家）</div>
+                    <div class="shop-list">${layers.far.slice(0, 5).map((p, i) => `
+                        <div class="shop-item">
+                            <span>${i+1}. <span class="shop-tag ${p._type}">${p._type === 'hot' ? '热' : p._type === 'local' ? '地' : '通'}</span>${p.name}</span>
+                            <span class="shop-dist">${(p.distance/1000).toFixed(2)}km</span>
+                        </div>
+                    `).join('')}</div>
+                </div>`;
+            }
+            
+            html += '</div>';
+            return html;
+        }
+        
+        function generateMarkdown(layers, location, industry) {
+            const total = layers.core.length + layers.near.length + layers.mid.length + layers.far.length;
+            
+            let md = `# 📍 ${location} · ${industry} 分析报告\n\n`;
+            md += `**搜索时间：** ${new Date().toLocaleString('zh-CN')}\n\n`;
+            md += `**总店铺数：** ${total} 家\n\n`;
+            md += `---\n\n`;
+            
+            md += `## 🔴 500米核心区（${layers.core.length}家）\n\n`;
+            md += layers.core.length > 0 
+                ? layers.core.map((p, i) => `${i+1}. **${p.name}** - ${p.distance}m`).join('\n')
+                : '（无）';
+            md += '\n\n';
+            
+            md += `## 🟠 500米-1公里近圈（${layers.near.length}家）\n\n`;
+            md += layers.near.length > 0
+                ? layers.near.map((p, i) => `${i+1}. **${p.name}** - ${(p.distance/1000).toFixed(2)}km`).join('\n')
+                : '（无）';
+            md += '\n\n';
+            
+            md += `## 🟡 1公里-3公里中圈（${layers.mid.length}家）\n\n`;
+            md += layers.mid.length > 0
+                ? layers.mid.map((p, i) => `${i+1}. **${p.name}** - ${(p.distance/1000).toFixed(2)}km`).join('\n')
+                : '（无）';
+            md += '\n\n';
+            
+            md += `## 🟢 3公里-5公里远圈（${layers.far.length}家）\n\n`;
+            md += layers.far.length > 0
+                ? layers.far.map((p, i) => `${i+1}. **${p.name}** - ${(p.distance/1000).toFixed(2)}km`).join('\n')
+                : '（无）';
+            md += '\n\n';
+            
+            md += `---\n\n`;
+            md += `*数据来源：高德地图 API*`;
+            
+            return md;
+        }
+        
+        function copyMarkdown() {
+            if (!lastResultMarkdown) {
+                showToast('暂无结果可复制');
+                return;
+            }
+            navigator.clipboard.writeText(lastResultMarkdown).then(() => {
+                showToast('✅ Markdown已复制', 'success');
+            }).catch(() => {
+                const textarea = document.createElement('textarea');
+                textarea.value = lastResultMarkdown;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showToast('✅ Markdown已复制', 'success');
+            });
+        }
+        
+        // 地图API封装
+        async function geocode(address, config) {
+            try {
+                const url = `https://restapi.amap.com/v3/geocode/geo?key=${config.amapKey}&address=${encodeURIComponent(address)}`;
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.status === '1' && data.geocodes?.length > 0) {
+                    const loc = data.geocodes[0].location.split(',');
+                    return [parseFloat(loc[0]), parseFloat(loc[1])];
+                }
+            } catch (e) {}
+            return null;
+        }
+        
+        async function searchBrand(location, keyword, radius, config, maxPages = 3) {
+            const results = [];
+            for (let page = 1; page <= maxPages; page++) {
+                try {
+                    const url = `https://restapi.amap.com/v3/place/around?key=${config.amapKey}&location=${location.join(',')}&keywords=${encodeURIComponent(keyword)}&radius=${radius}&offset=50&page=${page}&sortrule=distance`;
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    if (data.status === '1' && data.pois) {
+                        results.push(...data.pois);
+                        if (data.pois.length < 50) break;
+                    } else break;
+                    await sleep(80);
+                } catch (e) { break; }
+            }
+            return results;
+        }
+        
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    </script>
+</body>
+</html>
