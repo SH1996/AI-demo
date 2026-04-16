@@ -1,0 +1,2746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI地图品牌分析</title>
+    <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        background: #f5f7fa;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-shrink: 0;
+    }
+    .header h1 { font-size: 16px; font-weight: 600; }
+    .header-actions { display: flex; gap: 8px; }
+    .header-btn {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .header-btn:hover { background: rgba(255,255,255,0.3); }
+    .header-btn.ai { background: rgba(255,255,255,0.35); font-weight: 600; }
+    .header-btn.ai:hover { background: rgba(255,255,255,0.45); }
+    .header-btn.library { background: rgba(255,255,255,0.25); font-weight: 600; }
+    .header-btn.library:hover { background: rgba(255,255,255,0.35); }
+    .header-btn.library.has-data { background: #52c41a; }
+    
+    .panel {
+        background: white;
+        padding: 16px;
+        display: none;
+        border-bottom: 1px solid #e0e0e0;
+        max-height: 75vh;
+        overflow-y: auto;
+        flex-shrink: 0;
+    }
+    .panel.show { display: block; }
+    
+    .panel-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #667eea;
+    }
+    
+    .input-group { margin-bottom: 12px; }
+    .input-group label {
+        display: block;
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 4px;
+        font-weight: 500;
+    }
+    .input-group input, .input-group textarea, .input-group select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: inherit;
+    }
+    .input-group input[type="password"] {
+        font-family: monospace;
+        letter-spacing: 1px;
+    }
+    .input-group textarea {
+        min-height: 120px;
+        resize: vertical;
+    }
+    
+    .btn-primary {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 12px;
+        border-radius: 8px;
+        width: 100%;
+        font-size: 15px;
+        font-weight: 500;
+        cursor: pointer;
+        margin-bottom: 8px;
+    }
+    .btn-success {
+        background: #52c41a;
+        color: white;
+        border: none;
+        padding: 12px;
+        border-radius: 8px;
+        width: 100%;
+        font-size: 15px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+    .btn-warning {
+        background: #faad14;
+        color: white;
+        border: none;
+        padding: 10px;
+        border-radius: 8px;
+        width: 100%;
+        font-size: 14px;
+        cursor: pointer;
+        margin-top: 8px;
+    }
+    .btn-small {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+    }
+    
+    .prompt-box {
+        background: #f0f0ff;
+        border: 1px dashed #667eea;
+        border-radius: 8px;
+        padding: 12px;
+        margin: 12px 0;
+        font-size: 13px;
+        color: #333;
+    }
+    .prompt-box .title {
+        font-weight: 600;
+        color: #667eea;
+        margin-bottom: 8px;
+    }
+    .copy-btn {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+        margin-top: 8px;
+    }
+    
+    .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .chat-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+        padding-bottom: 100px;
+    }
+    
+    .message {
+        margin-bottom: 16px;
+        display: flex;
+        flex-direction: column;
+    }
+    .message.user { align-items: flex-end; }
+    .message.ai { align-items: flex-start; }
+    .message-bubble {
+        max-width: 90%;
+        padding: 12px 16px;
+        border-radius: 18px;
+        font-size: 14px;
+        line-height: 1.7;
+        word-break: break-word;
+    }
+    .message.user .message-bubble {
+        background: #667eea;
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+    .message.ai .message-bubble {
+        background: white;
+        color: #333;
+        border-bottom-left-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .message-time {
+        font-size: 11px;
+        color: #999;
+        margin-top: 4px;
+    }
+    
+    .ai-avatar {
+        width: 32px;
+        height: 32px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 14px;
+        margin-right: 8px;
+        flex-shrink: 0;
+    }
+    .message.ai {
+        flex-direction: row;
+        align-items: flex-start;
+    }
+    .message.ai .message-content {
+        display: flex;
+        flex-direction: column;
+        max-width: calc(100% - 44px);
+    }
+    
+    .phase-card {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 16px;
+        margin: 8px 0;
+        border-left: 4px solid #667eea;
+    }
+    .phase-title {
+        font-weight: 600;
+        color: #667eea;
+        margin-bottom: 12px;
+        font-size: 15px;
+    }
+    .phase-content {
+        font-size: 14px;
+        color: #333;
+        line-height: 1.8;
+    }
+    
+    .brand-section { margin: 8px 0; }
+    .brand-title {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 6px;
+    }
+    .brand-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .brand-tag {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+    }
+    .brand-tag.hot {
+        background: #ffebee;
+        color: #c62828;
+        border: 1px solid #ffcdd2;
+    }
+    .brand-tag.normal {
+        background: #e3f2fd;
+        color: #1565c0;
+    }
+    .brand-tag.general {
+        background: #f5f5f5;
+        color: #616161;
+    }
+    
+    .layer-section {
+        background: white;
+        border-radius: 12px;
+        padding: 16px;
+        margin: 12px 0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .layer-title {
+        font-weight: 600;
+        font-size: 15px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .layer-title.core { color: #c62828; }
+    .layer-title.near { color: #d84315; }
+    .layer-title.mid { color: #f57c00; }
+    .layer-title.far { color: #388e3c; }
+    
+    .shop-list {
+        font-size: 13px;
+        line-height: 2;
+    }
+    .shop-item {
+        padding: 4px 0;
+        border-bottom: 1px dashed #eee;
+        display: flex;
+        justify-content: space-between;
+    }
+    .shop-item:last-child { border-bottom: none; }
+    .shop-tag {
+        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-right: 6px;
+    }
+    .shop-tag.hot { background: #ffebee; color: #c62828; }
+    .shop-tag.local { background: #e3f2fd; color: #1565c0; }
+    .shop-tag.general { background: #f5f5f5; color: #616161; }
+    .shop-dist {
+        color: #999;
+        font-size: 12px;
+    }
+    
+    .action-buttons-container {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        align-items: center;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #f0f0f0;
+    }
+    
+    .action-btn {
+        flex: 1;
+        max-width: 160px;
+        padding: 12px 20px;
+        border-radius: 25px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border: none;
+        outline: none;
+        height: 44px;
+    }
+    
+    .action-btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    .action-btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+    }
+    
+    .action-btn-primary:active {
+        transform: translateY(0);
+    }
+    
+    .action-btn-secondary {
+        background: white;
+        color: #667eea;
+        border: 2px solid #667eea;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+    }
+    
+    .action-btn-secondary:hover {
+        background: #f8f9ff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    }
+    
+    .action-btn-secondary:active {
+        transform: translateY(0);
+    }
+    
+    .action-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none !important;
+    }
+    
+    .action-btn.saved {
+        background: #52c41a;
+        border-color: #52c41a;
+        color: white;
+        box-shadow: 0 4px 12px rgba(82, 196, 26, 0.3);
+    }
+    
+    .input-area {
+        background: white;
+        padding: 12px 16px;
+        border-top: 1px solid #eee;
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+        flex-shrink: 0;
+    }
+    .chat-input {
+        flex: 1;
+        border: 1px solid #ddd;
+        border-radius: 20px;
+        padding: 12px 16px;
+        font-size: 15px;
+        resize: none;
+        max-height: 120px;
+        min-height: 44px;
+        font-family: inherit;
+    }
+    .chat-input:focus { outline: none; border-color: #667eea; }
+    .send-btn {
+        width: 44px;
+        height: 44px;
+        background: #667eea;
+        border: none;
+        border-radius: 50%;
+        color: white;
+        font-size: 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .send-btn:disabled { background: #ccc; }
+    
+    .toast {
+        position: fixed;
+        top: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 10px 20px;
+        border-radius: 20px;
+        font-size: 14px;
+        z-index: 1000;
+        display: none;
+        color: white;
+    }
+    .toast.error { background: #ff4444; }
+    .toast.success { background: #52c41a; }
+    .toast.show { display: block; }
+    
+    .ai-config-compact {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 16px;
+        border: 1px solid #e0e0e0;
+    }
+    .ai-config-compact .input-group {
+        margin-bottom: 8px;
+    }
+    .ai-config-compact .input-group:last-child {
+        margin-bottom: 0;
+    }
+    .ai-chat-container {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+        max-height: 400px;
+        overflow-y: auto;
+        border: 1px solid #e0e0e0;
+    }
+    .ai-chat-message {
+        margin-bottom: 12px;
+        display: flex;
+        flex-direction: column;
+    }
+    .ai-chat-message.user {
+        align-items: flex-end;
+    }
+    .ai-chat-message.assistant {
+        align-items: flex-start;
+    }
+    .ai-chat-bubble {
+        max-width: 85%;
+        padding: 10px 14px;
+        border-radius: 12px;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+    .ai-chat-message.user .ai-chat-bubble {
+        background: #667eea;
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+    .ai-chat-message.assistant .ai-chat-bubble {
+        background: white;
+        color: #333;
+        border: 1px solid #e0e0e0;
+        border-bottom-left-radius: 4px;
+    }
+    .ai-chat-time {
+        font-size: 11px;
+        color: #999;
+        margin-top: 4px;
+    }
+    
+    .location-list-container {
+        background: white;
+        border-radius: 12px;
+        padding: 12px;
+        margin: 8px 0;
+        border: 1px solid #e0e0e0;
+        max-width: 100%;
+    }
+    .location-list-header {
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px dashed #e0e0e0;
+    }
+    
+    .location-item {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid #f0f0f0;
+        gap: 8px;
+    }
+    .location-item:last-child {
+        border-bottom: none;
+    }
+    .location-info {
+        flex: 1;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        min-width: 0;
+    }
+    .location-number {
+        width: 24px;
+        height: 24px;
+        background: #667eea;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 600;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+    .location-detail {
+        flex: 1;
+        min-width: 0;
+    }
+    .location-name {
+        font-size: 14px;
+        color: #333;
+        font-weight: 600;
+        line-height: 1.4;
+        word-break: break-word;
+    }
+    
+    .campus-tag {
+        display: inline-block;
+        background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+        color: white;
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        margin-left: 6px;
+        font-weight: 600;
+        box-shadow: 0 2px 4px rgba(255, 152, 0, 0.3);
+    }
+    .campus-tag.main {
+        background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+        box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+    }
+    
+    .location-desc {
+        font-size: 12px;
+        color: #666;
+        margin-top: 4px;
+        line-height: 1.4;
+        padding: 4px 8px;
+        background: #fff8e1;
+        border-radius: 6px;
+        border-left: 3px solid #ffc107;
+    }
+    .location-desc.no-campus {
+        background: #f5f5f5;
+        border-left-color: #9e9e9e;
+        color: #999;
+    }
+    
+    .query-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 6px 14px;
+        border-radius: 16px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.3s;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .query-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+    }
+    
+    .ai-input-area {
+        display: flex;
+        gap: 8px;
+    }
+    .ai-input-area input {
+        flex: 1;
+        padding: 10px 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    .hint-text {
+        font-size: 12px;
+        color: #666;
+        margin-top: 8px;
+        line-height: 1.5;
+    }
+    
+    .typing-indicator {
+        display: flex;
+        gap: 4px;
+        padding: 12px 16px;
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e0e0e0;
+        width: fit-content;
+    }
+    .typing-dot {
+        width: 8px;
+        height: 8px;
+        background: #667eea;
+        border-radius: 50%;
+        animation: typing 1.4s infinite;
+    }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typing {
+        0%, 60%, 100% { transform: translateY(0); }
+        30% { transform: translateY(-10px); }
+    }
+    
+    .library-container {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 16px;
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+    .library-item {
+        background: white;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: 2px solid transparent;
+        position: relative;
+    }
+    .library-item:hover {
+        border-color: #667eea;
+        transform: translateX(4px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .library-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    .library-item-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .library-item-stats {
+        display: flex;
+        gap: 12px;
+        font-size: 12px;
+        color: #666;
+    }
+    .library-stat {
+        background: #f0f0ff;
+        padding: 4px 8px;
+        border-radius: 8px;
+    }
+    .library-item-time {
+        font-size: 11px;
+        color: #999;
+    }
+    .library-item-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+    }
+    .library-btn {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        border: none;
+        cursor: pointer;
+        flex: 1;
+    }
+    .library-btn.view {
+        background: #667eea;
+        color: white;
+    }
+    .library-btn.delete {
+        background: #ffebee;
+        color: #c62828;
+    }
+    .library-industries {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+    }
+    .library-industry-tag {
+        background: #e3f2fd;
+        color: #1565c0;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+    }
+    .library-empty {
+        text-align: center;
+        padding: 40px;
+        color: #999;
+    }
+    
+    .storage-info {
+        background: #e8f5e9;
+        border: 1px solid #4caf50;
+        color: #2e7d32;
+        padding: 10px;
+        border-radius: 8px;
+        font-size: 12px;
+        margin-bottom: 12px;
+    }
+    .loading {
+        text-align: center;
+        padding: 20px;
+        color: #667eea;
+    }
+    .loading::after {
+        content: '';
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #667eea;
+        border-top-color: transparent;
+        border-radius: 50%;
+        margin-left: 8px;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    .campus-group-title {
+        font-size: 12px;
+        color: #667eea;
+        font-weight: 600;
+        margin: 12px 0 8px 32px;
+        padding: 4px 0;
+        border-bottom: 1px solid #e3f2fd;
+    }
+    
+    .county-tag {
+        display: inline-block;
+        background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+        color: white;
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 8px;
+        margin-left: 6px;
+        font-weight: 500;
+    }
+    
+    .error-detail {
+        background: #ffebee;
+        border: 1px solid #ffcdd2;
+        color: #c62828;
+        padding: 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        margin-top: 8px;
+        font-family: monospace;
+        max-height: 100px;
+        overflow: auto;
+    }
+    </style>
+</head>
+<body>
+<!-- 主应用容器 -->
+<div id="mainApp" style="display:flex;flex-direction:column;height:100vh;">
+    <div class="header">
+        <h1>🤖 AI地图品牌分析</h1>
+        <div class="header-actions">
+            <button class="header-btn library" id="libraryBtn" onclick="toggleLibrary()">📚 文档库</button>
+            <button class="header-btn ai" onclick="toggleAIAssistant()">🚀 AI地点助手</button>
+            <button class="header-btn" onclick="toggleConfig()">⚙️ 配置</button>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+
+    <!-- 文档库面板 -->
+    <div class="panel" id="libraryPanel">
+        <div class="panel-title">📚 文档库 <span style="font-size:12px;color:#666;font-weight:normal;">（本地存储）</span></div>
+        
+        <div class="storage-info" id="storageInfo">
+            <b>💾 本地存储：</b><span id="storageStats">加载中...</span>
+        </div>
+        
+        <div class="library-container" id="libraryContainer">
+            <div class="loading">加载中...</div>
+        </div>
+        
+        <button class="btn-warning" onclick="clearAllLibrary()" style="margin-top:12px;">🗑️ 清空所有存档</button>
+    </div>
+
+    <!-- AI地点助手面板 -->
+    <div class="panel" id="aiAssistantPanel">
+        <div class="panel-title">🚀 AI地点助手</div>
+        
+        <div class="ai-config-compact">
+            <div class="input-group">
+                <label style="font-size:12px;">🌐 AI接口地址</label>
+                <input type="text" id="aiUrl" placeholder="https://api.example.com/v1/chat/completions" style="font-size:13px;padding:8px;">
+                <div style="font-size:11px;color:#999;margin-top:4px;">💡 浏览器直接调用可能会遇到CORS限制，建议使用支持CORS的代理服务</div>
+            </div>
+            <div class="input-group">
+                <label style="font-size:12px;">🔐 API Key</label>
+                <input type="password" id="aiKey" placeholder="sk-..." style="font-size:13px;padding:8px;">
+            </div>
+            <div class="input-group">
+                <label style="font-size:12px;">🤖 模型名称（自由填写）</label>
+                <input type="text" id="aiModel" placeholder="例如：gpt-4o、claude-3-5-sonnet、deepseek-chat..." style="font-size:13px;padding:8px;">
+            </div>
+            <button class="btn-small" onclick="saveAIConfig()" style="width:100%;margin-top:8px;">💾 保存AI配置</button>
+        </div>
+        
+        <div class="ai-chat-container" id="aiChatHistory">
+            <div class="ai-chat-message assistant">
+                <div class="ai-chat-bubble">
+                    你好！我是AI地点助手。你可以问我：<br><br>
+                    • "中关村附近有哪些大学？"<br>
+                    • "绵阳市有哪些学校？"（会自动包含下属县）<br>
+                    • "三里屯附近有什么商圈？"<br><br>
+                    我会以列表形式展示地点，每个地点后面都有"查询"按钮，点击即可直接分析该地点周边的店铺！<br><br>
+                    <span style="color:#667eea;font-size:12px;">💡 提示：我会保留校区/分部信息，查询时自动去除括号，如"北京大学医学部"</span>
+                </div>
+                <div class="ai-chat-time">刚刚</div>
+            </div>
+        </div>
+        
+        <div class="ai-input-area">
+            <input type="text" id="aiChatInput" placeholder="输入你想问的问题..." onkeypress="if(event.key==='Enter')sendAIMessage()">
+            <button class="btn-small" onclick="sendAIMessage()" style="white-space:nowrap;">发送</button>
+        </div>
+        <div class="hint-text">
+            💡 <b>使用技巧：</b><br>
+            1. 询问某区域的地点列表（如"附近有哪些大学"）<br>
+            2. AI会返回带编号的地点列表，<b>自动处理市县层级</b>（如绵阳市包含下属县）<br>
+            3. 点击地点后面的"查询"按钮，一键分析该地点！
+        </div>
+    </div>
+
+    <!-- 配置面板 -->
+    <div class="panel" id="configPanel">
+        <div class="panel-title">⚙️ 基础配置</div>
+        
+        <div class="input-group">
+            <label>🔑 高德地图 Key（必填）</label>
+            <input type="password" id="amapKey" placeholder="输入高德地图API Key">
+        </div>
+        
+        <hr style="margin:16px 0;border:none;border-top:1px solid #eee;">
+        
+        <div class="prompt-box">
+            <div class="title">📋 第1步：复制指令给豆包</div>
+            <div style="background:white;padding:8px;border-radius:4px;font-size:12px;max-height:100px;overflow:auto;white-space:pre-wrap;">任务：搜索2024-2025年中国【炸鸡汉堡】行业的热门品牌清单
+请按以下格式输出：
+【行业名称】炸鸡汉堡
+【热门连锁品牌】（全国知名，门店1000+）
+• 品牌名1
+• 品牌名2
+...
+【地方/新兴品牌】（区域知名，特色品牌）
+• 品牌名1
+• 品牌名2
+...
+【相关通用词】（用于兜底搜索）
+• 通用词1
+• 通用词2
+...
+要求：
+1. 只输出真实存在的品牌名
+2. 区分全国连锁和地方品牌
+3. 数量：热门品牌10-15个，地方品牌5-8个，通用词3-5个</div>
+            <button class="copy-btn" onclick="copyPrompt()">📋 复制完整指令</button>
+        </div>
+        
+        <div class="input-group">
+            <label>📥 第2步：粘贴豆包返回的品牌列表</label>
+            <textarea id="importBrands" placeholder="把豆包返回的品牌列表粘贴到这里..."></textarea>
+        </div>
+        
+        <button class="btn-success" onclick="importBrands()">✅ 第3步：导入品牌库</button>
+        
+        <hr style="margin:16px 0;border:none;border-top:1px solid #eee;">
+        
+        <button class="btn-primary" onclick="saveConfig()">💾 保存基础配置</button>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-content">
+        <div class="chat-container" id="chatContainer">
+            <!-- 欢迎消息 -->
+            <div class="message ai">
+                <div class="ai-avatar">🤖</div>
+                <div class="message-content">
+                    <div class="message-bubble">
+                        <b>欢迎使用 AI地图品牌分析工具！</b><br><br>
+                        我可以帮你分析任意地点周边的店铺分布情况。<br><br>
+                        <b>使用方式：</b><br>
+                        1️⃣ 直接输入查询，如：<br>
+                        &nbsp;&nbsp;&nbsp;• "三里屯奶茶店"<br>
+                        &nbsp;&nbsp;&nbsp;• "中关村炸鸡汉堡店"<br>
+                        &nbsp;&nbsp;&nbsp;• "绵阳市学校周边"（自动包含下属县）<br><br>
+                        2️⃣ 或通过🚀 AI地点助手获取地点列表<br>
+                        &nbsp;&nbsp;&nbsp;<span style="color:#667eea;">💡 查询校区时会自动去除括号，如"北京大学医学部"</span><br><br>
+                        <span style="color:#667eea;font-size:12px;">💡 提示：如果没有配置高德地图Key，请点击右上角⚙️配置</span>
+                    </div>
+                    <div class="message-time">刚刚</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="input-area">
+            <textarea class="chat-input" id="chatInput" placeholder="输入你想分析的内容，如：三里屯奶茶店、中关村炸鸡汉堡..." rows="1"></textarea>
+            <button class="send-btn" id="sendBtn" onclick="handleUserInput()">➤</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// 全局变量
+let isProcessing = false;
+let currentPosition = null;
+let allPOIs = [];
+let importedBrandData = null;
+let lastResultMarkdown = '';
+let queryIdCounter = 1;
+let queryDataMap = new Map();
+let currentQueryData = null;
+let aiConversationHistory = [];
+let libraryCache = null;
+
+// 本地存储键名
+const LIBRARY_STORAGE_KEY = 'brand_map_library_v1';
+
+// 默认品牌库
+const defaultBrandDB = {
+    '奶茶': { hot: ['喜茶','奈雪的茶','茶百道','古茗','沪上阿姨','COCO都可','一点点','蜜雪冰城','书亦烧仙草','霸王茶姬'], local: [], general: ['奶茶','茶饮'] },
+    '炸鸡': { hot: ['肯德基','麦当劳','德克士','华莱士','正新鸡排','绝味鸭脖','周黑鸭'], local: [], general: ['炸鸡','汉堡'] },
+    '火锅': { hot: ['海底捞','呷哺呷哺','小龙坎','大龙燚','巴奴毛肚火锅'], local: [], general: ['火锅'] },
+    '烧烤': { hot: ['木屋烧烤','很久以前羊肉串','丰茂烤串'], local: [], general: ['烧烤','烤肉'] },
+    '咖啡': { hot: ['星巴克','瑞幸咖啡','Manner咖啡','M Stand','库迪咖啡','Costa咖啡'], local: [], general: ['咖啡'] },
+    '烘焙': { hot: ['好利来','鲍师傅','泸溪河','原麦山丘'], local: [], general: ['面包','蛋糕'] }
+};
+
+// Prompt模板
+const fullPrompt = `任务：搜索2024-2025年中国【行业】的热门品牌清单
+请按以下格式输出：
+【行业名称】行业名
+【热门连锁品牌】（全国知名，门店1000+）
+• 品牌名1
+• 品牌名2
+...
+【地方/新兴品牌】（区域知名，特色品牌）
+• 品牌名1
+• 品牌名2
+...
+【相关通用词】（用于兜底搜索）
+• 通用词1
+• 通用词2
+...
+要求：
+1. 只输出真实存在的品牌名
+2. 区分全国连锁和地方品牌
+3. 数量：热门品牌10-15个，地方品牌5-8个，通用词3-5个`;
+
+// 初始化
+document.addEventListener('DOMContentLoaded', () => {
+    // 清空之前的查询数据（页面刷新后）
+    queryDataMap.clear();
+    queryIdCounter = 0;
+    console.log('页面初始化，queryDataMap已清空');
+    
+    loadConfig();
+    
+    // 输入框回车发送
+    document.getElementById('chatInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleUserInput();
+        }
+    });
+    
+    // 自动调整输入框高度
+    document.getElementById('chatInput').addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+    
+    // 初始化文档库
+    loadLibraryFromStorage();
+    
+    console.log('页面初始化完成，所有按钮应该可点击');
+});
+
+// 配置管理
+function loadConfig() {
+    const config = localStorage.getItem('brand_map_config_v5');
+    if (config) {
+        const c = JSON.parse(config);
+        document.getElementById('amapKey').value = c.amapKey || '';
+        if (c.importedBrands) {
+            importedBrandData = c.importedBrands;
+            document.getElementById('importBrands').value = c.importedBrandsText || '';
+        }
+    }
+    
+    const aiConfig = localStorage.getItem('ai_assistant_config');
+    if (aiConfig) {
+        const c = JSON.parse(aiConfig);
+        document.getElementById('aiUrl').value = c.aiUrl || '';
+        document.getElementById('aiKey').value = c.aiKey || '';
+        document.getElementById('aiModel').value = c.aiModel || '';
+    }
+}
+
+function saveConfig() {
+    const config = {
+        amapKey: document.getElementById('amapKey').value,
+        importedBrands: importedBrandData,
+        importedBrandsText: document.getElementById('importBrands').value
+    };
+    localStorage.setItem('brand_map_config_v5', JSON.stringify(config));
+    
+    showToast('✅ 配置已保存', 'success');
+    toggleConfig();
+}
+
+function saveAIConfig() {
+    const config = {
+        aiUrl: document.getElementById('aiUrl').value,
+        aiKey: document.getElementById('aiKey').value,
+        aiModel: document.getElementById('aiModel').value
+    };
+    localStorage.setItem('ai_assistant_config', JSON.stringify(config));
+    showToast('✅ AI配置已保存', 'success');
+}
+
+function getConfig() {
+    const config = localStorage.getItem('brand_map_config_v5');
+    return config ? JSON.parse(config) : {};
+}
+
+// 直接获取输入框的实时值，而不只是从localStorage读取
+function getAIConfig() {
+    // 优先从输入框获取（即使用户忘记点击保存）
+    const url = document.getElementById('aiUrl')?.value?.trim();
+    const key = document.getElementById('aiKey')?.value?.trim();
+    const model = document.getElementById('aiModel')?.value?.trim();
+    
+    if (url && key && model) {
+        return { aiUrl: url, aiKey: key, aiModel: model };
+    }
+    
+    // 如果输入框为空，尝试从localStorage获取
+    const config = localStorage.getItem('ai_assistant_config');
+    return config ? JSON.parse(config) : {};
+}
+
+// UI切换
+function toggleConfig() {
+    const panel = document.getElementById('configPanel');
+    const aiPanel = document.getElementById('aiAssistantPanel');
+    const libraryPanel = document.getElementById('libraryPanel');
+    panel.classList.toggle('show');
+    aiPanel.classList.remove('show');
+    libraryPanel.classList.remove('show');
+}
+
+function toggleAIAssistant() {
+    const panel = document.getElementById('aiAssistantPanel');
+    const configPanel = document.getElementById('configPanel');
+    const libraryPanel = document.getElementById('libraryPanel');
+    panel.classList.toggle('show');
+    configPanel.classList.remove('show');
+    libraryPanel.classList.remove('show');
+}
+
+function toggleLibrary() {
+    const panel = document.getElementById('libraryPanel');
+    const aiPanel = document.getElementById('aiAssistantPanel');
+    const configPanel = document.getElementById('configPanel');
+    panel.classList.toggle('show');
+    aiPanel.classList.remove('show');
+    configPanel.classList.remove('show');
+    
+    if (panel.classList.contains('show')) {
+        loadLibraryFromStorage();
+        checkStorageUsage();
+    }
+}
+
+function showToast(msg, type = 'error') {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = 'toast ' + type + ' show';
+    setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// 品牌导入功能
+function copyPrompt() {
+    navigator.clipboard.writeText(fullPrompt).then(() => {
+        showToast('✅ 指令已复制', 'success');
+    }).catch(() => {
+        const textarea = document.createElement('textarea');
+        textarea.value = fullPrompt;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast('✅ 指令已复制', 'success');
+    });
+}
+
+function importBrands() {
+    const text = document.getElementById('importBrands').value.trim();
+    if (!text) {
+        showToast('请先粘贴品牌列表');
+        return;
+    }
+    
+    try {
+        const parsed = parseBrandText(text);
+        importedBrandData = parsed;
+        showToast(`✅ 成功导入：${parsed.hot.length}个热门品牌`, 'success');
+        
+        addPhaseCard('📥 品牌库已更新', `
+            <div class="brand-section">
+                <div class="brand-title">🔥 热门连锁（${parsed.hot.length}个）</div>
+                <div class="brand-tags">${parsed.hot.map(b => `<span class="brand-tag hot">${b}</span>`).join('')}</div>
+            </div>
+            ${parsed.local.length > 0 ? `
+            <div class="brand-section">
+                <div class="brand-title">📍 地方品牌（${parsed.local.length}个）</div>
+                <div class="brand-tags">${parsed.local.map(b => `<span class="brand-tag normal">${b}</span>`).join('')}</div>
+            </div>` : ''}
+            <div class="brand-section">
+                <div class="brand-title">🔍 通用词（${parsed.general.length}个）</div>
+                <div class="brand-tags">${parsed.general.map(b => `<span class="brand-tag general">${b}</span>`).join('')}</div>
+            </div>
+        `);
+    } catch (e) {
+        showToast('解析失败，请检查格式');
+    }
+}
+
+function parseBrandText(text) {
+    const result = { hot: [], local: [], general: [], industry: '未知' };
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+    let currentSection = null;
+    
+    for (const line of lines) {
+        if (line.includes('【行业名称】')) {
+            result.industry = line.replace('【行业名称】', '').trim();
+            continue;
+        }
+        if (line.includes('【热门') || line.includes('【连锁')) {
+            currentSection = 'hot';
+            continue;
+        }
+        if (line.includes('【地方') || line.includes('【新兴')) {
+            currentSection = 'local';
+            continue;
+        }
+        if (line.includes('【通用') || line.includes('【相关')) {
+            currentSection = 'general';
+            continue;
+        }
+        const brandMatch = line.match(/^[-•·\d.\s]*(.+)$/);
+        if (brandMatch && currentSection) {
+            const brand = brandMatch[1].trim();
+            if (brand && brand.length >= 2 && !brand.includes('品牌名') && !brand.includes('通用词')) {
+                result[currentSection].push(brand);
+            }
+        }
+    }
+    return result;
+}
+
+// 消息处理
+function addMessage(text, isUser = false) {
+    const container = document.getElementById('chatContainer');
+    const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    
+    let html = '';
+    if (isUser) {
+        html = `
+            <div class="message user">
+                <div class="message-bubble">${escapeHtml(text)}</div>
+                <div class="message-time">${time}</div>
+            </div>
+        `;
+    } else {
+        html = `
+            <div class="message ai">
+                <div class="ai-avatar">🤖</div>
+                <div class="message-content">
+                    <div class="message-bubble">${text}</div>
+                    <div class="message-time">${time}</div>
+                </div>
+            </div>
+        `;
+    }
+    
+    container.insertAdjacentHTML('beforeend', html);
+    container.scrollTop = container.scrollHeight;
+    return container.lastElementChild.querySelector('.message-bubble');
+}
+
+function escapeHtml(text) {
+    return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function addPhaseCard(title, content) {
+    const container = document.getElementById('chatContainer');
+    const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    
+    const html = `
+        <div class="message ai">
+            <div class="ai-avatar">🤖</div>
+            <div class="message-content">
+                <div class="phase-card">
+                    <div class="phase-title">${title}</div>
+                    <div class="phase-content">${content}</div>
+                </div>
+                <div class="message-time">${time}</div>
+            </div>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', html);
+    container.scrollTop = container.scrollHeight;
+}
+
+// 行业检测
+function detectIndustry(text) {
+    for (const industry of Object.keys(defaultBrandDB)) {
+        if (text.includes(industry)) return industry;
+    }
+    const mappings = {
+        '鸡排': '炸鸡', '炸物': '炸鸡', '鸡腿': '炸鸡',
+        '茶饮': '奶茶', '饮料': '奶茶',
+        '涮肉': '火锅', '串串': '火锅',
+        '烤肉': '烧烤', '烤串': '烧烤'
+    };
+    for (const [k, v] of Object.entries(mappings)) {
+        if (text.includes(k)) return v;
+    }
+    return '综合';
+}
+
+// 地点检测 - 支持更多格式
+function detectLocation(text) {
+    // 先尝试匹配带特定后缀的地点（如县、区、市、路、街等）
+    const specificPattern = /([\u4e00-\u9fa5]{2,}(?:校区|县|区|市|镇|乡|村|路|街|商圈|广场|大厦|中心|城|大学|学院|学校))/g;
+    const matches = text.match(specificPattern);
+    if (matches && matches.length > 0) {
+        // 返回第一个匹配，但要过滤掉行业词
+        const industryWords = ['炸鸡', '汉堡', '奶茶', '茶饮', '咖啡', '火锅', '烧烤', '面包', '蛋糕', '店'];
+        for (const match of matches) {
+            let isIndustry = false;
+            for (const word of industryWords) {
+                if (match.includes(word)) {
+                    isIndustry = true;
+                    break;
+                }
+            }
+            if (!isIndustry) return match;
+        }
+    }
+    
+    // 尝试匹配"XX附近"、"XX周围"格式
+    const nearbyPattern = /(.+?)(?:附近|周围|周边)/;
+    const nearbyMatch = text.match(nearbyPattern);
+    if (nearbyMatch && nearbyMatch[1].length >= 2) {
+        return nearbyMatch[1].trim();
+    }
+    
+    // 尝试匹配"XX的YY店"格式，取XX作为地点
+    const posPattern = /^(.+?)(?:的|内|里|里面)/;
+    const posMatch = text.match(posPattern);
+    if (posMatch && posMatch[1].length >= 2 && posMatch[1].length <= 15) {
+        // 检查是否包含行业词
+        const industryWords = ['炸鸡', '汉堡', '奶茶', '茶饮', '咖啡', '火锅', '烧烤', '面包', '蛋糕', '店'];
+        let isIndustry = false;
+        for (const word of industryWords) {
+            if (posMatch[1].includes(word)) {
+                isIndustry = true;
+                break;
+            }
+        }
+        if (!isIndustry) return posMatch[1].trim();
+    }
+    
+    // 智能提取地点：取开头到行业词之间的部分
+    const industry = detectIndustry(text);
+    if (industry !== '综合' && text.includes(industry)) {
+        const idx = text.indexOf(industry);
+        if (idx > 0) {
+            let location = text.substring(0, idx).trim();
+            // 去掉常见的连接词
+            location = location.replace(/^(查|查询|搜索|搜|的|在)+/, '');
+            location = location.replace(/(的|是|有)$/, '');
+            if (location.length >= 2 && location.length <= 20) {
+                return location;
+            }
+        }
+    }
+    
+    // 如果只有两个字，且是常见地名，直接返回
+    if (text.length >= 2 && text.length <= 15) {
+        // 简单启发式：取前2-4个字作为地点尝试
+        const simpleLocation = text.substring(0, Math.min(4, text.indexOf(industry) > 0 ? text.indexOf(industry) : 4));
+        if (simpleLocation.length >= 2) {
+            return simpleLocation;
+        }
+    }
+    
+    return null;
+}
+
+function detectRadius(text) {
+    let r = 5000;
+    if (text.includes('附近')) r = 3000;
+    const km = text.match(/(\d+)\s*公里/);
+    if (km) r = parseInt(km[1]) * 1000;
+    return r;
+}
+
+function getBrandKeywords(industry) {
+    if (importedBrandData) {
+        return importedBrandData;
+    }
+    for (const [key, val] of Object.entries(defaultBrandDB)) {
+        if (industry.includes(key) || key.includes(industry)) {
+            return val;
+        }
+    }
+    return {
+        hot: [industry, industry + '店'],
+        local: [],
+        general: [industry]
+    };
+}
+
+// ============================================
+// 文档库 - 浏览器本地存储版
+// ============================================
+
+// 【关键修复】使用Base64编码来安全传递参数，避免引号问题
+function encodeLocation(str) {
+    if (!str) return '';
+    // 使用encodeURIComponent + btoa来确保字符串安全
+    try {
+        return btoa(encodeURIComponent(str));
+    } catch (e) {
+        return str;
+    }
+}
+
+function decodeLocation(str) {
+    try {
+        return decodeURIComponent(atob(str));
+    } catch (e) {
+        return str;
+    }
+}
+
+// 检查存储统计
+function checkStorageUsage() {
+    try {
+        const data = localStorage.getItem(LIBRARY_STORAGE_KEY);
+        let size = 0;
+        let count = 0;
+        
+        if (data) {
+            const library = JSON.parse(data);
+            const keys = Object.keys(library);
+            count = keys.length;
+            // 估算大小（字符数）
+            size = new Blob([data]).size;
+        }
+        
+        const sizeInKB = (size / 1024).toFixed(2);
+        document.getElementById('storageStats').innerHTML = 
+            `共 ${count} 个地点，占用 ${sizeInKB} KB`;
+    } catch (e) {
+        console.error('获取存储统计失败:', e);
+        document.getElementById('storageStats').textContent = '获取失败';
+    }
+}
+
+// 从本地存储加载文档库
+function loadLibraryFromStorage() {
+    try {
+        const container = document.getElementById('libraryContainer');
+        
+        const data = localStorage.getItem(LIBRARY_STORAGE_KEY);
+        let library = {};
+        
+        if (data) {
+            library = JSON.parse(data);
+        }
+        
+        libraryCache = library;
+        updateLibraryUI(library);
+        updateLibraryBtnState(library);
+    } catch (e) {
+        console.error('加载文档库失败:', e);
+        showToast('❌ 文档库加载失败', 'error');
+        document.getElementById('libraryContainer').innerHTML = `
+            <div class="library-empty">
+                <div style="font-size:48px;margin-bottom:12px;">❌</div>
+                <div>加载失败</div>
+                <div style="font-size:12px;color:#999;margin-top:8px;">${e.message}</div>
+            </div>
+        `;
+    }
+}
+
+// 获取文档库数据（从缓存）
+function getLibraryData() {
+    if (libraryCache === null) {
+        const data = localStorage.getItem(LIBRARY_STORAGE_KEY);
+        libraryCache = data ? JSON.parse(data) : {};
+    }
+    return libraryCache;
+}
+
+// 保存文档到本地存储
+function saveLibraryData(location, doc) {
+    try {
+        const library = getLibraryData();
+        library[location] = doc;
+        
+        // 保存到localStorage
+        localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(library));
+        
+        // 更新缓存
+        libraryCache = library;
+        
+        // 更新UI
+        updateLibraryUI(library);
+        updateLibraryBtnState(library);
+        checkStorageUsage();
+        
+        return { success: true };
+    } catch (e) {
+        console.error('保存失败:', e);
+        showToast(`❌ 保存失败: ${e.message}`, 'error');
+        return { success: false, error: e.message };
+    }
+}
+
+// 更新文档库按钮状态
+function updateLibraryBtnState(data) {
+    const btn = document.getElementById('libraryBtn');
+    const count = Object.keys(data || {}).length;
+    if (count > 0) {
+        btn.classList.add('has-data');
+        btn.textContent = `📚 文档库(${count})`;
+    } else {
+        btn.classList.remove('has-data');
+        btn.textContent = `📚 文档库`;
+    }
+}
+
+// 更新文档库UI - 使用Base64编码传递参数
+function updateLibraryUI(data) {
+    const container = document.getElementById('libraryContainer');
+    const locations = Object.keys(data || {});
+    
+    if (locations.length === 0) {
+        container.innerHTML = `
+            <div class="library-empty">
+                <div style="font-size:48px;margin-bottom:12px;">📂</div>
+                <div>暂无存档数据</div>
+                <div style="font-size:12px;color:#999;margin-top:8px;">查询结果后点击"💾 存档"按钮保存</div>
+            </div>
+        `;
+        return;
+    }
+    
+    locations.sort((a, b) => new Date(data[b].lastUpdated) - new Date(data[a].lastUpdated));
+    
+    let html = '';
+    locations.forEach(locationName => {
+        const doc = data[locationName];
+        const industries = Object.keys(doc.queries || {});
+        const totalQueries = industries.length;
+        const totalShops = Object.values(doc.queries || {}).reduce((sum, q) => sum + (q.totalShops || 0), 0);
+        
+        // 使用Base64编码locationName，避免引号问题
+        const encodedLocation = encodeLocation(locationName);
+        
+        html += `
+            <div class="library-item" onclick="handleLibraryItemClick('${encodedLocation}')">
+                <div class="library-item-header">
+                    <div class="library-item-title">
+                        📍 ${escapeHtml(locationName)}
+                    </div>
+                    <div class="library-item-stats">
+                        <span class="library-stat">${totalQueries}个行业</span>
+                        <span class="library-stat">${totalShops}家店铺</span>
+                    </div>
+                </div>
+                <div class="library-item-time">
+                    最后更新：${doc.lastUpdated}
+                </div>
+                <div class="library-industries">
+                    ${industries.map(ind => `<span class="library-industry-tag">${escapeHtml(ind)}</span>`).join('')}
+                </div>
+                <div class="library-item-actions" onclick="event.stopPropagation()">
+                    <button class="library-btn view" onclick="loadFromLibrary('${encodedLocation}')">📖 查看详情</button>
+                    <button class="library-btn delete" onclick="deleteLibraryItem('${encodedLocation}')">🗑️ 删除</button>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+// 处理文档项点击（查看详情）
+function handleLibraryItemClick(encodedLocation) {
+    loadFromLibrary(encodedLocation);
+}
+
+// 存档当前查询
+async function archiveCurrentQuery(queryId) {
+    console.log('开始存档，queryId:', queryId);
+    
+    // 确保 queryId 是数字
+    queryId = parseInt(queryId, 10);
+    console.log('转换后 queryId:', queryId, 'Map keys:', Array.from(queryDataMap.keys()));
+    
+    // 从Map中获取对应ID的查询数据
+    const queryData = queryDataMap.get(queryId);
+    
+    if (!queryData) {
+        console.error('找不到查询数据，queryId:', queryId);
+        showToast('❌ 找不到该查询数据，请重新查询后再试');
+        return;
+    }
+    
+    console.log('找到查询数据:', queryData.location, queryData.industry);
+    
+    const { location, industry, layers, coords } = queryData;
+    
+    // 显示加载中
+    const archiveBtn = document.getElementById(`archiveBtn-${queryId}`);
+    if (archiveBtn) {
+        archiveBtn.innerHTML = '⏳ 存档中...';
+        archiveBtn.disabled = true;
+    }
+    
+    try {
+        const library = getLibraryData();
+        
+        let mergeInfo = '';
+        
+        const minimizedLayers = {
+            core: (layers.core || []).map(minimizePOI),
+            near: (layers.near || []).map(minimizePOI),
+            mid: (layers.mid || []).map(minimizePOI),
+            far: (layers.far || []).map(minimizePOI)
+        };
+        
+        let doc;
+        if (library[location]) {
+            doc = library[location];
+            const existingQueries = doc.queries;
+            
+            if (existingQueries[industry]) {
+                const existing = existingQueries[industry];
+                const mergedLayers = mergeLayers(existing.layers, minimizedLayers);
+                const mergedCount = countShopsInLayers(mergedLayers);
+                const addedCount = mergedCount - existing.totalShops;
+                
+                existingQueries[industry] = {
+                    time: new Date().toLocaleString('zh-CN'),
+                    industry: industry,
+                    layers: mergedLayers,
+                    totalShops: mergedCount,
+                    coords: coords
+                };
+                
+                mergeInfo = addedCount > 0 ? `新增${addedCount}家店铺` : '数据已是最新';
+            } else {
+                existingQueries[industry] = {
+                    time: new Date().toLocaleString('zh-CN'),
+                    industry: industry,
+                    layers: minimizedLayers,
+                    totalShops: countShopsInLayers(minimizedLayers),
+                    coords: coords
+                };
+                mergeInfo = `新增"${industry}"行业数据`;
+            }
+        } else {
+            doc = {
+                location: location,
+                createTime: new Date().toLocaleString('zh-CN'),
+                queries: {
+                    [industry]: {
+                        time: new Date().toLocaleString('zh-CN'),
+                        industry: industry,
+                        layers: minimizedLayers,
+                        totalShops: countShopsInLayers(minimizedLayers),
+                        coords: coords
+                    }
+                }
+            };
+            mergeInfo = '新文档已创建';
+        }
+        
+        doc.lastUpdated = new Date().toLocaleString('zh-CN');
+        
+        const result = saveLibraryData(location, doc);
+        if (!result.success) {
+            throw new Error(result.error || '保存失败');
+        }
+        
+        showToast(`✅ 已存档：${location} - ${industry}（${mergeInfo}）`, 'success');
+        
+        // 更新对应ID的按钮状态
+        if (archiveBtn) {
+            archiveBtn.innerHTML = '✅ 已存档';
+            archiveBtn.classList.remove('action-btn-primary');
+            archiveBtn.classList.add('saved');
+        }
+    } catch (err) {
+        console.error('存档失败:', err);
+        showToast(`❌ 存档失败: ${err.message}`, 'error');
+        // 恢复按钮状态
+        if (archiveBtn) {
+            archiveBtn.innerHTML = '💾 存档';
+            archiveBtn.disabled = false;
+        }
+    }
+}
+
+function mergeLayers(existingLayers, newLayers) {
+    return {
+        core: mergePOILists(existingLayers.core || [], newLayers.core || []),
+        near: mergePOILists(existingLayers.near || [], newLayers.near || []),
+        mid: mergePOILists(existingLayers.mid || [], newLayers.mid || []),
+        far: mergePOILists(existingLayers.far || [], newLayers.far || [])
+    };
+}
+
+function mergePOILists(existing, newList) {
+    const map = new Map();
+    const existingMin = existing.map(minimizePOI);
+    const newMin = newList.map(minimizePOI);
+    
+    existingMin.forEach(poi => {
+        const key = `${poi.name}_${poi.address}`;
+        map.set(key, poi);
+    });
+    
+    newMin.forEach(poi => {
+        const key = `${poi.name}_${poi.address}`;
+        if (map.has(key)) {
+            const existing = map.get(key);
+            if (parseInt(poi.distance || 99999) < parseInt(existing.distance || 99999)) {
+                map.set(key, poi);
+            }
+        } else {
+            map.set(key, poi);
+        }
+    });
+    
+    return Array.from(map.values()).sort((a, b) => 
+        parseInt(a.distance || 99999) - parseInt(b.distance || 99999)
+    );
+}
+
+function countShopsInLayers(layers) {
+    return (layers.core?.length || 0) + 
+           (layers.near?.length || 0) + 
+           (layers.mid?.length || 0) + 
+           (layers.far?.length || 0);
+}
+
+// 从文档库加载 - 接收Base64编码的参数
+async function loadFromLibrary(encodedLocation) {
+    try {
+        const locationName = decodeLocation(encodedLocation);
+        const library = getLibraryData();
+        const doc = library[locationName];
+        
+        if (!doc) {
+            showToast('文档不存在');
+            return;
+        }
+        
+        document.getElementById('libraryPanel').classList.remove('show');
+        addMessage(`📚 从本地加载：${locationName}`, true);
+        
+        const allIndustries = Object.values(doc.queries || {});
+        const mergedLayers = { core: [], near: [], mid: [], far: [] };
+        const industryNames = [];
+        
+        allIndustries.forEach(query => {
+            industryNames.push(query.industry);
+            mergedLayers.core = mergePOILists(mergedLayers.core, query.layers?.core || []);
+            mergedLayers.near = mergePOILists(mergedLayers.near, query.layers?.near || []);
+            mergedLayers.mid = mergePOILists(mergedLayers.mid, query.layers?.mid || []);
+            mergedLayers.far = mergePOILists(mergedLayers.far, query.layers?.far || []);
+        });
+        
+        const layerHTML = generateLayerHTML(mergedLayers, locationName, industryNames.join('、'));
+        lastResultMarkdown = generateMarkdown(mergedLayers, locationName, industryNames.join('、'));
+        
+        const container = document.getElementById('chatContainer');
+        const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        
+        let sourceInfo = '<div style="background:#e8f5e9;border:1px solid #4caf50;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:#2e7d32;">';
+        sourceInfo += '<b>📚 本地文档库数据</b><br>';
+        allIndustries.forEach(q => {
+            sourceInfo += `• ${q.industry}：${q.totalShops}家（存档于${q.time}）<br>`;
+        });
+        sourceInfo += '</div>';
+        
+        const html = `
+            <div class="message ai">
+                <div class="ai-avatar">📚</div>
+                <div class="message-content">
+                    <div class="message-bubble">
+                        ${sourceInfo}
+                        ${layerHTML.replace('<div class="message-bubble">', '').replace('</div>', '')}
+                    </div>
+                    <div class="message-time">${time}</div>
+                </div>
+            </div>
+        `;
+        
+        container.insertAdjacentHTML('beforeend', html);
+        container.scrollTop = container.scrollHeight;
+        
+        showToast('✅ 已从本地加载', 'success');
+    } catch (err) {
+        console.error('加载文档库失败:', err);
+        showToast('❌ 加载失败: ' + err.message, 'error');
+    }
+}
+
+// 单点删除功能 - 接收Base64编码的参数
+function deleteLibraryItem(encodedLocation) {
+    try {
+        const locationName = decodeLocation(encodedLocation);
+        if (!confirm(`确定要删除"${locationName}"的所有存档数据吗？`)) return;
+        
+        console.log('删除文档:', locationName);
+        
+        const library = getLibraryData();
+        if (library[locationName]) {
+            delete library[locationName];
+            localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(library));
+            libraryCache = library;
+            updateLibraryUI(library);
+            updateLibraryBtnState(library);
+            checkStorageUsage();
+            showToast('✅ 已删除存档', 'success');
+        } else {
+            showToast('❌ 文档不存在', 'error');
+        }
+    } catch (e) {
+        console.error('删除失败:', e);
+        showToast('❌ 删除失败：' + e.message, 'error');
+    }
+}
+
+// 清空所有文档
+function clearAllLibrary() {
+    try {
+        if (!confirm('确定要清空所有存档数据吗？此操作不可恢复！')) return;
+        
+        console.log('清空所有文档');
+        
+        localStorage.removeItem(LIBRARY_STORAGE_KEY);
+        libraryCache = {};
+        updateLibraryUI({});
+        updateLibraryBtnState({});
+        checkStorageUsage();
+        showToast('✅ 已清空所有存档', 'success');
+    } catch (e) {
+        console.error('清空失败:', e);
+        showToast('❌ 清空失败：' + e.message, 'error');
+    }
+}
+
+// 检查现有存档
+function checkExistingArchive(location, industry) {
+    const library = getLibraryData();
+    if (library[location] && library[location].queries && library[location].queries[industry]) {
+        return library[location].queries[industry];
+    }
+    return null;
+}
+
+// 精简POI数据
+function minimizePOI(poi) {
+    if (poi && poi._minimized) return poi;
+    
+    // 确保 address 是字符串
+    let addr = '';
+    if (poi.address) {
+        addr = String(poi.address);
+    }
+    
+    return {
+        name: poi.name || '',
+        address: addr.substring(0, 50),
+        distance: poi.distance || '0',
+        _brand: poi._brand || '',
+        _type: poi._type || 'general',
+        _minimized: true
+    };
+}
+
+// ============================================
+// AI地点助手
+// ============================================
+
+// 市县列表（用于识别是否包含下属县）
+const cityCountyMap = {
+    '绵阳市': ['涪城区', '游仙区', '安州区', '三台县', '盐亭县', '梓潼县', '北川县', '平武县', '江油市'],
+    '成都市': ['锦江区', '青羊区', '金牛区', '武侯区', '成华区', '龙泉驿区', '青白江区', '新都区', '温江区', '双流区', '郫都区', '新津区', '金堂县', '大邑县', '蒲江县', '都江堰市', '彭州市', '邛崃市', '崇州市', '简阳市'],
+    '南充市': ['顺庆区', '高坪区', '嘉陵区', '南部县', '营山县', '蓬安县', '仪陇县', '西充县', '阆中市'],
+    '宜宾市': ['翠屏区', '南溪区', '叙州区', '江安县', '长宁县', '高县', '珙县', '筠连县', '兴文县', '屏山县'],
+    // 可以按需添加更多城市
+};
+
+// 解析地点列表，支持市县层级，处理校区格式（去掉括号）
+function parseLocationList(text, cityName) {
+    const locations = [];
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+    
+    // 扩展校区关键词列表，更严格识别
+    const campusKeywords = ['校区', '分校', '分院', '分部', '分园', '园区', '研究所', '研究生院', '医学部', '工学院'];
+    
+    // 检测是否包含"市"级别查询
+    const isCityQuery = cityName && cityName.endsWith('市');
+    const counties = isCityQuery ? (cityCountyMap[cityName] || []) : [];
+    
+    for (const line of lines) {
+        // 匹配列表格式：一、XXX 或 1. XXX 或 - XXX
+        const match = line.match(/^(?:[一二三四五六七八九十百千万亿]+[、.]|\d+[、.]|[•\-])\s*(.+?)(?:[，,。]|$)/);
+        if (match) {
+            let fullName = match[1].trim();
+            
+            // 提取主名称和说明（括号内容）
+            let mainName = fullName;
+            let description = '';
+            let hasCampus = false;
+            let countyName = null; // 所属县
+            
+            // 匹配括号内的说明（如：北京大学（医学部））
+            const bracketMatch = fullName.match(/(.+?)[（(]([^)）]+)[）)]/);
+            if (bracketMatch) {
+                mainName = bracketMatch[1].trim();
+                description = bracketMatch[2].trim();
+                // 检查是否包含校区关键词
+                hasCampus = campusKeywords.some(kw => description.includes(kw));
+                
+                // 【关键】生成高德查询名称：去掉括号，使用"主名称+描述"格式
+                // 如"北京大学（医学部）" -> "北京大学医学部"
+                // 但要去掉"含"、"包括"等无关词
+                let cleanDesc = description.replace(/含|包括|及|等/g, '');
+                
+                // 如果描述是校区信息，使用"学校名+校区名"
+                if (hasCampus) {
+                    mainName = `${mainName}${cleanDesc}`;
+                }
+            } else {
+                // 检查是否直接包含校区关键词（无括号格式）
+                for (const kw of campusKeywords) {
+                    if (fullName.includes(kw)) {
+                        hasCampus = true;
+                        break;
+                    }
+                }
+            }
+            
+            // 【新增】检测是否包含县名（用于市县层级）
+            if (isCityQuery) {
+                for (const county of counties) {
+                    if (fullName.includes(county) || line.includes(county)) {
+                        countyName = county;
+                        break;
+                    }
+                }
+            }
+            
+            // 清理主名称中可能的无关字符
+            mainName = mainName.replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '').trim();
+            
+            if (mainName.length >= 2 && mainName.length <= 40) {
+                locations.push({ 
+                    name: mainName,           // 用于查询的主名称（已去掉括号）
+                    fullName: fullName,      // 完整原始名称
+                    displayName: fullName,   // 显示用名称
+                    description: description, // 括号内的说明
+                    hasCampus: hasCampus,    // 是否明确标识校区
+                    countyName: countyName,  // 所属县（市县层级）
+                    fullLine: line             // 原始行文本
+                });
+            }
+            continue;
+        }
+    }
+    
+    // 【新增】按主名称分组，检测同一地点的多校区情况
+    const grouped = {};
+    locations.forEach(loc => {
+        // 提取基础名称（去掉校区后缀用于分组）
+        let baseName = loc.name;
+        for (const kw of campusKeywords) {
+            if (loc.name.includes(kw)) {
+                const idx = loc.name.indexOf(kw);
+                baseName = loc.name.substring(0, idx).trim();
+                break;
+            }
+        }
+        
+        if (!grouped[baseName]) {
+            grouped[baseName] = [];
+        }
+        grouped[baseName].push(loc);
+    });
+    
+    // 标记多校区地点
+    Object.keys(grouped).forEach(key => {
+        if (grouped[key].length > 1) {
+            grouped[key].forEach(loc => {
+                loc.isMultiCampus = true;
+                loc.campusCount = grouped[key].length;
+                loc.baseName = key;
+            });
+        }
+    });
+    
+    return locations;
+}
+
+// 【修复】增强错误处理和日志，添加全局try-catch
+async function sendAIMessage() {
+    console.log('=== sendAIMessage 开始执行 ===');
+    
+    try {
+        const input = document.getElementById('aiChatInput');
+        if (!input) {
+            console.error('找不到 aiChatInput 元素');
+            showToast('页面元素错误，请刷新重试');
+            return;
+        }
+        
+        const message = input.value.trim();
+        console.log('用户输入:', message);
+        
+        if (!message) {
+            showToast('请输入消息');
+            return;
+        }
+        
+        // 直接从输入框获取配置（即使用户忘记点击保存）
+        const aiUrl = document.getElementById('aiUrl')?.value?.trim();
+        const aiKey = document.getElementById('aiKey')?.value?.trim();
+        const aiModel = document.getElementById('aiModel')?.value?.trim();
+        
+        console.log('AI配置检查:', { 
+            url: aiUrl ? '已填写(' + aiUrl.substring(0, 20) + '...)' : '未填写', 
+            key: aiKey ? '已填写(' + aiKey.substring(0, 10) + '...)' : '未填写', 
+            model: aiModel || '未填写'
+        });
+        
+        if (!aiUrl || !aiKey || !aiModel) {
+            showToast('请先填写完整的AI配置（URL、Key、模型名称）');
+            // 显示配置面板方便用户填写
+            document.getElementById('aiAssistantPanel')?.classList.add('show');
+            return;
+        }
+        
+        // 【重要】不再自动拦截查询指令，所有输入都发送给AI，除非明确以"查询"开头且很短
+        // 这样避免误判用户意图
+        const directQueryMatch = message.match(/^(?:查|查询|分析|搜)[一搜查]?[一下个]?(.{1,10})$/);
+        if (directQueryMatch && !message.includes('？') && !message.includes('?')) {
+            const location = directQueryMatch[1].trim();
+            console.log('检测到直接查询指令:', location);
+            toggleAIAssistant();
+            addMessage(`🚀 通过AI助手查询：${location}`, true);
+            await analyzeSingleLocation(location, '综合', 5000);
+            input.value = '';
+            return;
+        }
+        
+        addAIMessage(message, 'user');
+        input.value = '';
+        
+        showAITypingIndicator();
+        
+        // 增强系统提示词，支持市县层级，严格要求区分校区
+        let systemPrompt = `你是地点推荐助手。用户询问某个区域有哪些地点（如大学、商圈、写字楼等），你需要列出该区域内相关地点。
+
+【极其重要的规则】：
+1. 必须使用列表格式回复，每行一个地点，格式为："一、地点名" 或 "1. 地点名"
+2. **核心要求**：如果同一机构有多个校区/分部，必须每个校区单独列出一行，绝不允许合并。
+   - ❌ 错误示例："北京大学（含医学部、昌平校区）"
+   - ✅ 正确示例：
+     一、北京大学（本部/燕园）
+     二、北京大学（医学部/北医）
+     三、北京大学（昌平新校区）
+3. 每个校区必须明确标注具体名称（如"本部"、"医学部"、"沙河校区"等）
+4. 对于大学，如果知道具体校区名（如"中关村校区"、"望京校区"），必须标注`;
+
+        // 如果是市级别查询，添加市县层级提示
+        const cityMatch = message.match(/(\w+市)/);
+        const cityName = cityMatch ? cityMatch[1] : null;
+        
+        if (cityName && cityCountyMap[cityName]) {
+            const counties = cityCountyMap[cityName];
+            systemPrompt += `\n5. **特别重要**：用户询问的是"${cityName}"，必须包含下属所有区县（${counties.join('、')}）的相关地点，不要只列市区。每个地点后建议标注所属区县。`;
+        }
+        
+        systemPrompt += `\n\n示例回复格式（严格区分校区）：\n一、北京大学（燕园校区/本部）\n二、北京大学（医学部）\n三、清华大学（主校区）\n四、清华大学（深圳国际研究生院）`;
+        
+        const messages = [
+            { role: 'system', content: systemPrompt },
+            ...aiConversationHistory.slice(-10).map(m => ({ role: m.role, content: m.content })),
+            { role: 'user', content: message }
+        ];
+        
+        console.log('准备调用AI API:', { url: aiUrl, model: aiModel, messageCount: messages.length });
+        
+        let response;
+        try {
+            response = await fetch(aiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${aiKey}`
+                },
+                body: JSON.stringify({
+                    model: aiModel,
+                    messages: messages,
+                    temperature: 0.3
+                })
+            });
+        } catch (fetchErr) {
+            console.error('Fetch 错误:', fetchErr);
+            throw new Error(`网络请求失败: ${fetchErr.message}`);
+        }
+        
+        console.log('API响应状态:', response.status, response.statusText);
+        
+        if (!response.ok) {
+            let errorText = '';
+            try {
+                errorText = await response.text();
+            } catch (e) {}
+            throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
+        }
+        
+        let data;
+        try {
+            data = await response.json();
+        } catch (jsonErr) {
+            throw new Error('返回数据不是有效的JSON格式');
+        }
+        
+        if (data.error) {
+            throw new Error(data.error.message || 'AI接口返回错误');
+        }
+        
+        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+            throw new Error('API返回格式异常，缺少choices字段');
+        }
+        
+        const aiResponse = data.choices[0].message.content;
+        removeAITypingIndicator();
+        
+        const locations = parseLocationList(aiResponse, cityName);
+        
+        if (locations.length >= 2) {
+            addLocationListMessage(aiResponse, locations, cityName);
+        } else {
+            addAIMessage(aiResponse, 'assistant');
+        }
+        
+    } catch (err) {
+        removeAITypingIndicator();
+        console.error('AI调用失败:', err);
+        
+        let errorMsg = err.message;
+        if (err.message.includes('CORS') || err.message.includes('Failed to fetch') || err.message.includes('网络请求失败')) {
+            errorMsg = '浏览器CORS跨域限制：无法直接调用该API。请使用支持CORS的代理服务，或在服务器端部署代理。';
+        }
+        
+        showToast('AI调用失败：' + errorMsg);
+        
+        addAIMessage(`抱歉，AI接口调用失败：${errorMsg}\n\n可能原因：\n1. 浏览器CORS跨域限制（最常见）\n2. API地址或Key错误\n3. 网络连接问题\n\n建议：在浏览器控制台(F12)查看详细错误信息。\n\n原始错误：${err.message}`, 'assistant');
+    }
+    
+    console.log('=== sendAIMessage 执行结束 ===');
+}
+
+function showAITypingIndicator() {
+    const container = document.getElementById('aiChatHistory');
+    const html = `
+        <div class="ai-chat-message assistant" id="typingIndicator">
+            <div class="typing-indicator">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+    container.scrollTop = container.scrollHeight;
+}
+
+function removeAITypingIndicator() {
+    const indicator = document.getElementById('typingIndicator');
+    if (indicator) indicator.remove();
+}
+
+// 地点列表显示
+function addLocationListMessage(originalText, locations, cityName) {
+    const container = document.getElementById('aiChatHistory');
+    const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    
+    // 提取介绍文本（列表前的文字）
+    let introText = originalText;
+    const firstListIndex = originalText.search(/(?:[一二三四五六七八九十百千万亿]+[、.]|\d+[、.]|[•\-])\s*/);
+    if (firstListIndex > 0) {
+        introText = originalText.substring(0, firstListIndex).trim();
+    } else {
+        introText = `为您找到以下 ${locations.length} 个地点：`;
+    }
+    
+    // 按主名称分组，用于显示分组标题
+    const grouped = {};
+    locations.forEach(loc => {
+        const key = loc.baseName || loc.name;
+        if (!grouped[key]) {
+            grouped[key] = [];
+        }
+        grouped[key].push(loc);
+    });
+    
+    // 生成地点列表HTML，支持市县层级显示
+    let locationsHtml = '';
+    let currentGroup = null;
+    
+    locations.forEach((loc, index) => {
+        // 如果开始新的主地点组，显示分组标题
+        if (loc.isMultiCampus && loc.baseName !== currentGroup) {
+            currentGroup = loc.baseName;
+            locationsHtml += `
+                <div class="campus-group-title">
+                    🏫 ${escapeHtml(loc.baseName)}（${loc.campusCount}个校区/分部）
+                </div>
+            `;
+        }
+        
+        // 决定显示策略
+        let displayName = loc.displayName;
+        let campusBadge = '';
+        let countyBadge = '';
+        
+        // 如果有校区说明，生成校区标签
+        if (loc.description) {
+            // 判断是否是主校区
+            const isMainCampus = /本|主|老|原/i.test(loc.description) && !/新|分|医/i.test(loc.description);
+            const tagClass = isMainCampus ? 'campus-tag main' : 'campus-tag';
+            campusBadge = `<span class="${tagClass}">${escapeHtml(loc.description)}</span>`;
+        } else if (loc.hasCampus) {
+            // 无描述但有校区标记
+            campusBadge = `<span class="campus-tag">分校区</span>`;
+        }
+        
+        // 如果有县信息，显示县标签
+        if (loc.countyName) {
+            countyBadge = `<span class="county-tag">${escapeHtml(loc.countyName)}</span>`;
+        }
+        
+        // 多校区警告提示
+        let warningTip = '';
+        if (loc.isMultiCampus) {
+            warningTip = `<div style="font-size:11px;color:#ff5722;margin-top:4px;font-weight:500;">⚠️ 注意区分：此地点有多个校区，请确认选择正确的位置</div>`;
+        }
+        
+        // 【关键】查询名称使用已去掉括号的版本（loc.name）
+        // 使用Base64编码避免引号问题
+        const encodedName = encodeLocation(loc.name);
+        const encodedDisplay = encodeLocation(loc.displayName);
+        
+        locationsHtml += `
+            <div class="location-item" style="${loc.isMultiCampus ? 'background:#fff3e0;border-radius:8px;padding:12px;margin:4px 0;' : ''}">
+                <div class="location-info">
+                    <div class="location-number">${index + 1}</div>
+                    <div class="location-detail">
+                        <div class="location-name">
+                            ${escapeHtml(displayName)}
+                            ${campusBadge}
+                            ${countyBadge}
+                        </div>
+                        ${loc.description ? `
+                        <div class="location-desc">
+                            📍 高德查询格式：${escapeHtml(loc.name)}
+                        </div>` : ''}
+                        ${warningTip}
+                    </div>
+                </div>
+                <button class="query-btn" onclick="queryLocationFromAI('${encodedName}', '${encodedDisplay}')">🔍 查询</button>
+            </div>
+        `;
+    });
+    
+    const html = `
+        <div class="ai-chat-message assistant">
+            <div style="max-width: 90%; margin-bottom: 8px; padding: 10px 14px; background: white; border: 1px solid #e0e0e0; border-radius: 12px; border-bottom-left-radius: 4px; font-size: 14px; line-height: 1.6;">
+                ${escapeHtml(introText)}
+                <div style="margin-top:8px;font-size:12px;color:#ff9800;background:#fff8e1;padding:6px 10px;border-radius:6px;">
+                    💡 提示：已自动处理校区格式（去掉括号），点击"查询"将使用"学校名+校区名"格式精确搜索
+                    ${cityName ? `<br>📍 已包含${cityName}下属各区县` : ''}
+                </div>
+            </div>
+            <div class="location-list-container">
+                <div class="location-list-header">📍 找到 ${locations.length} 个地点：</div>
+                ${locationsHtml}
+            </div>
+            <div class="ai-chat-time">${time}</div>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', html);
+    container.scrollTop = container.scrollHeight;
+    
+    aiConversationHistory.push({ role: 'assistant', content: originalText, time: time });
+}
+
+function addAIMessage(text, role) {
+    const container = document.getElementById('aiChatHistory');
+    const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    
+    aiConversationHistory.push({ role: role, content: text, time: time });
+    if (aiConversationHistory.length > 20) {
+        aiConversationHistory = aiConversationHistory.slice(-20);
+    }
+    
+    const html = `
+        <div class="ai-chat-message ${role}">
+            <div class="ai-chat-bubble">${escapeHtml(text)}</div>
+            <div class="ai-chat-time">${time}</div>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', html);
+    container.scrollTop = container.scrollHeight;
+}
+
+// 从AI助手查询地点
+async function queryLocationFromAI(encodedName, encodedDisplay) {
+    try {
+        const locationName = decodeLocation(encodedName);
+        const displayName = decodeLocation(encodedDisplay);
+        
+        toggleAIAssistant();
+        
+        const showName = displayName || locationName;
+        addMessage(`🚀 查询 "${showName}" 周边店铺`, true);
+        
+        await analyzeSingleLocation(locationName, '综合', 5000);
+    } catch (err) {
+        console.error('查询失败:', err);
+        showToast('查询失败: ' + err.message, 'error');
+    }
+}
+
+// ============================================
+// 单点查询核心逻辑
+// ============================================
+
+async function handleUserInput() {
+    if (isProcessing) return;
+    
+    const input = document.getElementById('chatInput');
+    const userQuery = input.value.trim();
+    if (!userQuery) return;
+    
+    const config = getConfig();
+    if (!config.amapKey) {
+        showToast('请先配置高德地图Key');
+        toggleConfig();
+        return;
+    }
+    
+    // 清空输入框并显示用户消息
+    input.value = '';
+    input.style.height = 'auto';
+    addMessage(userQuery, true);
+    
+    isProcessing = true;
+    document.getElementById('sendBtn').disabled = true;
+    lastResultMarkdown = '';
+    currentQueryData = null;
+    
+    try {
+        const industry = detectIndustry(userQuery);
+        const location = detectLocation(userQuery);
+        const radius = detectRadius(userQuery);
+        
+        // 如果无法识别地点，尝试使用整个查询文本作为地点（简单启发式）
+        let finalLocation = location;
+        if (!finalLocation) {
+            // 取前4-6个字作为地点猜测
+            const guessLocation = userQuery.substring(0, Math.min(userQuery.length, 6)).replace(/(的|查|搜|找)$/g, '');
+            if (guessLocation.length >= 2) {
+                console.log('地点识别失败，使用猜测地点:', guessLocation);
+                finalLocation = guessLocation;
+            }
+        }
+        
+        if (!finalLocation) {
+            addMessage('❌ 请明确说出地点名称，例如"三里屯奶茶店" 或 "中关村炸鸡店"', false);
+            isProcessing = false;
+            document.getElementById('sendBtn').disabled = false;
+            return;
+        }
+        
+        // 检查本地存档
+        const existingArchive = await checkExistingArchive(finalLocation, industry);
+        if (existingArchive) {
+            // 使用Base64编码location和industry
+            const encodedLoc = encodeLocation(finalLocation);
+            const encodedInd = encodeLocation(industry);
+            
+            addPhaseCard('📚 检测到本地存档', `
+                <div style="color:#52c41a;font-weight:600;">"${finalLocation}" 的"${industry}"数据已存在于本地文档库中</div><br>
+                <b>存档时间：</b>${existingArchive.time}<br>
+                <b>店铺数量：</b>${existingArchive.totalShops}家<br><br>
+                <button class="btn-small" onclick="loadFromLibrary('${encodedLoc}')" style="background:#52c41a;">📚 直接加载存档（零成本）</button>
+                <button class="btn-small" onclick="forceRequery('${encodedLoc}', '${encodedInd}', ${radius})" style="background:#ff9800;margin-left:8px;">🔄 强制重新查询</button>
+            `);
+            
+            isProcessing = false;
+            document.getElementById('sendBtn').disabled = false;
+            return;
+        }
+        
+        await analyzeSingleLocation(finalLocation, industry, radius);
+        
+    } catch (err) {
+        console.error(err);
+        addMessage(`❌ 出错：${err.message}`);
+    } finally {
+        isProcessing = false;
+        document.getElementById('sendBtn').disabled = false;
+    }
+}
+
+async function forceRequery(encodedLocation, encodedIndustry, radius) {
+    try {
+        const location = decodeLocation(encodedLocation);
+        const industry = decodeLocation(encodedIndustry);
+        
+        isProcessing = true;
+        document.getElementById('sendBtn').disabled = true;
+        await analyzeSingleLocation(location, industry, radius);
+        isProcessing = false;
+        document.getElementById('sendBtn').disabled = false;
+    } catch (err) {
+        console.error('强制重新查询失败:', err);
+        showToast('重新查询失败: ' + err.message, 'error');
+        isProcessing = false;
+        document.getElementById('sendBtn').disabled = false;
+    }
+}
+
+async function analyzeSingleLocation(location, industry, radius) {
+    const config = getConfig();
+    const brandData = getBrandKeywords(industry);
+    
+    addPhaseCard('📋 步骤1：需求识别', `
+        <b>查询地点：</b>${location}<br>
+        <b>行业类型：</b>${industry}<br>
+        <b>搜索半径：</b>${radius/1000}公里<br>
+        <b>品牌来源：</b>${importedBrandData ? '豆包导入数据' : '内置品牌库'}
+    `);
+    
+    addPhaseCard('🏷️ 步骤2：品牌关键词库', `
+        <div class="brand-section">
+            <div class="brand-title">🔥 热门连锁（${brandData.hot.length}个）</div>
+            <div class="brand-tags">${brandData.hot.map(b => `<span class="brand-tag hot">${b}</span>`).join('')}</div>
+        </div>
+        ${brandData.local.length > 0 ? `
+        <div class="brand-section">
+            <div class="brand-title">📍 地方品牌（${brandData.local.length}个）</div>
+            <div class="brand-tags">${brandData.local.map(b => `<span class="brand-tag normal">${b}</span>`).join('')}</div>
+        </div>` : ''}
+        <div class="brand-section">
+            <div class="brand-title">🔍 通用词（${brandData.general.length}个）</div>
+            <div class="brand-tags">${brandData.general.map(b => `<span class="brand-tag general">${b}</span>`).join('')}</div>
+        </div>
+    `);
+    
+    addPhaseCard('📍 步骤3：地理定位', '正在获取坐标...');
+    
+    // 地理编码
+    let coords = await geocode(location, config);
+    
+    if (!coords) {
+        addMessage('❌ 无法定位该地点，请检查地点名称是否正确');
+        return;
+    }
+    currentPosition = coords;
+    
+    allPOIs = [];
+    const seen = new Set();
+    const allKeywords = [...brandData.hot, ...brandData.local, ...brandData.general];
+    
+    addPhaseCard('🔍 步骤4：分层深度搜索', `
+        准备搜索 ${allKeywords.length} 个关键词...
+        <div style="margin-top:12px;color:#667eea;">⏳ 正在搜索中...</div>
+    `);
+    
+    // 依次搜索品牌
+    for (const brand of brandData.hot.slice(0, 10)) {
+        const results = await searchBrand(coords, brand, radius, config, 3);
+        for (const poi of results) {
+            const key = `${poi.name}_${poi.address}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                poi._brand = brand;
+                poi._type = 'hot';
+                allPOIs.push(poi);
+            }
+        }
+        await sleep(150);
+    }
+    
+    for (const brand of brandData.local.slice(0, 5)) {
+        const results = await searchBrand(coords, brand, radius, config, 2);
+        for (const poi of results) {
+            const key = `${poi.name}_${poi.address}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                poi._brand = brand;
+                poi._type = 'local';
+                allPOIs.push(poi);
+            }
+        }
+        await sleep(100);
+    }
+    
+    for (const word of brandData.general) {
+        const results = await searchBrand(coords, word, radius, config, 2);
+        for (const poi of results) {
+            const key = `${poi.name}_${poi.address}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                poi._brand = word;
+                poi._type = 'general';
+                allPOIs.push(poi);
+            }
+        }
+        await sleep(100);
+    }
+    
+    allPOIs.sort((a, b) => parseInt(a.distance || 99999) - parseInt(b.distance || 99999));
+    
+    const layers = {
+        core: allPOIs.filter(p => parseInt(p.distance || 99999) <= 500),
+        near: allPOIs.filter(p => { const d = parseInt(p.distance || 0); return d > 500 && d <= 1000; }),
+        mid: allPOIs.filter(p => { const d = parseInt(p.distance || 0); return d > 1000 && d <= 3000; }),
+        far: allPOIs.filter(p => { const d = parseInt(p.distance || 0); return d > 3000 && d <= 5000; })
+    };
+    
+    currentQueryData = {
+        id: queryIdCounter++,
+        location: location,
+        industry: industry,
+        layers: layers,
+        coords: coords,
+        time: new Date().toLocaleString('zh-CN')
+    };
+    
+    // 存入Map，用于多结果存档
+    queryDataMap.set(currentQueryData.id, currentQueryData);
+    
+    addPhaseCard('📊 步骤5：搜索结果汇总', `
+        ✅ 搜索完成<br><br>
+        <b>总店铺数：${allPOIs.length} 家</b><br><br>
+        🔴 500米核心区：${layers.core.length} 家<br>
+        🟠 1公里近圈：${layers.near.length} 家<br>
+        🟡 3公里中圈：${layers.mid.length} 家<br>
+        🟢 5公里远圈：${layers.far.length} 家
+    `);
+    
+    const layerHTML = generateLayerHTML(layers, location, industry);
+    lastResultMarkdown = generateMarkdown(layers, location, industry);
+    
+    const container = document.getElementById('chatContainer');
+    const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    
+    const currentId = currentQueryData.id;
+    const encodedLoc = encodeLocation(location);
+    
+    const html = `
+        <div class="message ai" id="result-${currentId}">
+            <div class="ai-avatar">📊</div>
+            <div class="message-content">
+                ${layerHTML}
+                <div class="action-buttons-container">
+                    <button class="action-btn action-btn-secondary" onclick="copyMarkdownById(${currentId})">
+                        📋 复制报告
+                    </button>
+                    <button class="action-btn action-btn-primary" id="archiveBtn-${currentId}" onclick="archiveCurrentQuery(${currentId})">
+                        💾 存档
+                    </button>
+                </div>
+                <div class="message-time">${time}</div>
+            </div>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', html);
+    container.scrollTop = container.scrollHeight;
+}
+
+function generateLayerHTML(layers, location, industry) {
+    let html = `<div class="message-bubble">
+        <b>📍 ${location} · ${industry} 分层分析报告</b><br>
+        <div style="color:#666;font-size:12px;margin:8px 0;">共找到 ${layers.core.length + layers.near.length + layers.mid.length + layers.far.length} 家店铺</div>
+    `;
+    
+    if (layers.core.length > 0) {
+        html += `<div class="layer-section">
+            <div class="layer-title core">🔴 500米核心区（${layers.core.length}家）</div>
+            <div class="shop-list">${layers.core.slice(0, 15).map((p, i) => `
+                <div class="shop-item">
+                    <span>${i+1}. <span class="shop-tag ${p._type}">${p._type === 'hot' ? '热' : p._type === 'local' ? '地' : '通'}</span>${p.name}</span>
+                    <span class="shop-dist">${p.distance}m</span>
+                </div>
+            `).join('')}</div>
+        </div>`;
+    }
+    
+    if (layers.near.length > 0) {
+        html += `<div class="layer-section">
+            <div class="layer-title near">🟠 500米-1公里近圈（${layers.near.length}家）</div>
+            <div class="shop-list">${layers.near.slice(0, 10).map((p, i) => `
+                <div class="shop-item">
+                    <span>${i+1}. <span class="shop-tag ${p._type}">${p._type === 'hot' ? '热' : p._type === 'local' ? '地' : '通'}</span>${p.name}</span>
+                    <span class="shop-dist">${(p.distance/1000).toFixed(2)}km</span>
+                </div>
+            `).join('')}</div>
+        </div>`;
+    }
+    
+    if (layers.mid.length > 0) {
+        html += `<div class="layer-section">
+            <div class="layer-title mid">🟡 1公里-3公里中圈（${layers.mid.length}家）</div>
+            <div class="shop-list">${layers.mid.slice(0, 8).map((p, i) => `
+                <div class="shop-item">
+                    <span>${i+1}. <span class="shop-tag ${p._type}">${p._type === 'hot' ? '热' : p._type === 'local' ? '地' : '通'}</span>${p.name}</span>
+                    <span class="shop-dist">${(p.distance/1000).toFixed(2)}km</span>
+                </div>
+            `).join('')}</div>
+        </div>`;
+    }
+    
+    if (layers.far.length > 0) {
+        html += `<div class="layer-section">
+            <div class="layer-title far">🟢 3公里-5公里远圈（${layers.far.length}家）</div>
+            <div class="shop-list">${layers.far.slice(0, 5).map((p, i) => `
+                <div class="shop-item">
+                    <span>${i+1}. <span class="shop-tag ${p._type}">${p._type === 'hot' ? '热' : p._type === 'local' ? '地' : '通'}</span>${p.name}</span>
+                    <span class="shop-dist">${(p.distance/1000).toFixed(2)}km</span>
+                </div>
+            `).join('')}</div>
+        </div>`;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+function generateMarkdown(layers, location, industry) {
+    const total = layers.core.length + layers.near.length + layers.mid.length + layers.far.length;
+    
+    let md = `# 📍 ${location} · ${industry} 分析报告\n\n`;
+    md += `**搜索时间：** ${new Date().toLocaleString('zh-CN')}\n\n`;
+    md += `**总店铺数：** ${total} 家\n\n`;
+    md += `---\n\n`;
+    
+    md += `## 🔴 500米核心区（${layers.core.length}家）\n\n`;
+    md += layers.core.length > 0 
+        ? layers.core.map((p, i) => `${i+1}. **${p.name}** - ${p.distance}m`).join('\n')
+        : '（无）';
+    md += '\n\n';
+    
+    md += `## 🟠 500米-1公里近圈（${layers.near.length}家）\n\n`;
+    md += layers.near.length > 0
+        ? layers.near.map((p, i) => `${i+1}. **${p.name}** - ${(p.distance/1000).toFixed(2)}km`).join('\n')
+        : '（无）';
+    md += '\n\n';
+    
+    md += `## 🟡 1公里-3公里中圈（${layers.mid.length}家）\n\n`;
+    md += layers.mid.length > 0
+        ? layers.mid.map((p, i) => `${i+1}. **${p.name}** - ${(p.distance/1000).toFixed(2)}km`).join('\n')
+        : '（无）';
+    md += '\n\n';
+    
+    md += `## 🟢 3公里-5公里远圈（${layers.far.length}家）\n\n`;
+    md += layers.far.length > 0
+        ? layers.far.map((p, i) => `${i+1}. **${p.name}** - ${(p.distance/1000).toFixed(2)}km`).join('\n')
+        : '（无）';
+    md += '\n\n';
+    
+    md += `---\n\n`;
+    md += `*数据来源：高德地图 API*`;
+    
+    return md;
+}
+
+function copyMarkdown() {
+    if (!lastResultMarkdown) {
+        showToast('暂无结果可复制');
+        return;
+    }
+    copyToClipboard(lastResultMarkdown);
+}
+
+// 根据ID复制报告
+function copyMarkdownById(queryId) {
+    // 确保 queryId 是数字
+    queryId = parseInt(queryId, 10);
+    
+    const queryData = queryDataMap.get(queryId);
+    if (!queryData) {
+        showToast('找不到该查询的数据');
+        return;
+    }
+    const { location, industry, layers } = queryData;
+    const markdown = generateMarkdown(layers, location, industry);
+    copyToClipboard(markdown);
+}
+
+// 复制到剪贴板
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('✅ Markdown已复制', 'success');
+    }).catch(() => {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast('✅ Markdown已复制', 'success');
+    });
+}
+
+// 地图API封装
+async function geocode(address, config) {
+    try {
+        const url = `https://restapi.amap.com/v3/geocode/geo?key=${config.amapKey}&address=${encodeURIComponent(address)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.status === '1' && data.geocodes?.length > 0) {
+            const loc = data.geocodes[0].location.split(',');
+            return [parseFloat(loc[0]), parseFloat(loc[1])];
+        }
+    } catch (e) {}
+    return null;
+}
+
+async function searchBrand(location, keyword, radius, config, maxPages = 3) {
+    const results = [];
+    for (let page = 1; page <= maxPages; page++) {
+        try {
+            const url = `https://restapi.amap.com/v3/place/around?key=${config.amapKey}&location=${location.join(',')}&keywords=${encodeURIComponent(keyword)}&radius=${radius}&offset=50&page=${page}&sortrule=distance`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.status === '1' && data.pois) {
+                results.push(...data.pois);
+                if (data.pois.length < 50) break;
+            } else break;
+            await sleep(80);
+        } catch (e) { break; }
+    }
+    return results;
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+</script>
+</body>
+</html>
